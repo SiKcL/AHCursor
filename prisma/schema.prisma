@@ -15,11 +15,13 @@ datasource db {
 }
 
 
-model Producto{
+model Product{
   id  Int @id @default(autoincrement())
   nombre  String
   descripcion  String?
   precio  Decimal
   imageUrl  String?
   createdAt  DateTime @default(now())
+
+  @@map("producto")
 }

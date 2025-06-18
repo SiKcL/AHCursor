@@ -1,18 +1,16 @@
 // Ruta: src/app/productos/page.tsx
 
 import prisma from '@/lib/prisma';
-import { Producto } from '@prisma/client';
+import { Product } from '@prisma/client';
 import ProductoSlider from '@/components/Productos'; 
 
 async function getProductos() {
   try {
     const productosFromDb = await prisma.producto.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const productos = productosFromDb.map((producto: Producto) => ({
+    const productos = productosFromDb.map((producto: Product) => ({
       ...producto,
       precio: producto.precio.toNumber(),
     }));

@@ -1,6 +1,7 @@
 // Ruta: src/app/productos/page.tsx
 
 import prisma from '@/lib/prisma';
+import { Producto } from '@prisma/client';
 import ProductoSlider from '@/components/Productos'; 
 
 async function getProductos() {
@@ -11,11 +12,9 @@ async function getProductos() {
       },
     });
 
-    // 👇 ¡AQUÍ ESTÁ LA SOLUCIÓN!
-    // Mapeamos sobre los resultados y convertimos cada 'precio' de Decimal a número.
-    const productos = productosFromDb.map(producto => ({
+    const productos = productosFromDb.map((producto: Producto) => ({
       ...producto,
-      precio: producto.precio.toNumber(), // Convertimos el Decimal a un número simple
+      precio: producto.precio.toNumber(),
     }));
 
     return productos;

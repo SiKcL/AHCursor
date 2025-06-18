@@ -1,11 +1,9 @@
-// src/components/ProductoModal.tsx
 'use client'
 
 import React from 'react'
 import Image from 'next/image'
 import { Decimal } from '@prisma/client/runtime/library'
 
-// ... (La interfaz 'Producto' y la función 'formatPrice' no cambian) ...
 interface Producto {
   nombre: string;
   descripcion: string | null;
@@ -20,7 +18,6 @@ const formatPrice = (price: Decimal | number) => {
 
 export default function ProductoModal({ producto, onClose }: { producto: Producto; onClose: () => void }) {
   return (
-    // Fondo con efecto "glass" (semitransparente + desenfoque)
     <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
       onClick={onClose}
@@ -42,7 +39,7 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
                     src={producto.imageUrl || '/placeholder.png'}
                     alt={`Imagen de ${producto.nombre}`}
                     fill
-                    className="object-contain" // <-- Muestra la imagen completa sin recortar
+                    className="object-contain" //
                 />
             </div>
         </div>

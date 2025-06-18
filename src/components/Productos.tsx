@@ -1,4 +1,3 @@
-// src/components/Producto.tsx
 'use client'
 
 import React, { useState } from 'react'
@@ -6,9 +5,9 @@ import { useKeenSlider } from 'keen-slider/react'
 import 'keen-slider/keen-slider.min.css'
 import Image from 'next/image'
 import { Decimal } from '@prisma/client/runtime/library'
-import ProductoModal from './ProductoModal' // Importamos nuestro modal
+import ProductoModal from './ProductoModal' 
 
-// ... (La interfaz 'Producto' y la función 'formatPrice' no cambian) ...
+
 interface Producto {
   id: number;
   nombre: string;
@@ -25,12 +24,12 @@ const formatPrice = (price: Decimal | number) => {
 export default function ProductoSlider({ productos }: { productos: Producto[] }) {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
-  // Ajustamos la configuración del slider para un look de galería
+ 
   const [sliderRef] = useKeenSlider<HTMLDivElement>({
-    loop: false, // El loop a veces se siente menos como una "galería"
+    loop: false,
     mode: "free-snap",
     slides: {
-      perView: 2, // Menos slides a la vez en móvil para que sean más grandes
+      perView: 2, 
       spacing: 15,
     },
     breakpoints: {
@@ -52,7 +51,7 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
         {productos.map((producto) => (
           <div 
             key={producto.id} 
-            className="keen-slider__slide group" // Simplificamos la tarjeta base
+            className="keen-slider__slide group"
             onClick={() => setProductoSeleccionado(producto)}
           >
             <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer">

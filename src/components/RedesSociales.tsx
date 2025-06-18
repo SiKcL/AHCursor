@@ -6,8 +6,7 @@ export default function SocialReels() {
                 {/* Reel Facebook */}
                 <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>
                         <iframe
-                            src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Freel%2F1318135712799220%2F&width=500&show_text=false&height=889&appId"
-                            // Recuerda lo de la URL de Facebook
+                            src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Freel%2F1318135712799220%2F&width=500&show_text=false&height=889&appId"                           
                             title="Reel Facebook"
                             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                             allowFullScreen

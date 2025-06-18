@@ -61,10 +61,18 @@ export default function Header() {
       {/* Mobile menu */}
       {showMenu && (
         <div className="absolute top-full left-0 w-full bg-white flex flex-col items-start p-6 gap-4 shadow-md">
-          <a href="#">Nosotros</a>
-          <a href="#">Productos</a>
-          <a href="#">Galería</a>
-          <a href="#">Preguntas Frecuentes</a> 
+          <Link href="/nosotros" className="hover:text-[color:var(--secondary)]">
+        Nosotros
+      </Link>
+      <Link href="/productos" className="hover:text-[color:var(--secondary)]">
+        Productos
+      </Link>
+      <Link href="/galeria" className="hover:text-[color:var(--secondary)]">
+        Galería
+      </Link>
+      <Link href="/preguntas" className="hover:text-[color:var(--secondary)]">
+        Preguntas Frecuentes
+      </Link>
         </div>
       )}
     </header>

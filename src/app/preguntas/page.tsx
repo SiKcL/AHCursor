@@ -5,7 +5,7 @@ const faqData = [
   {
     question: '¿Tengo que desinfectar los productos de Agrícola Horizonte?',
     answer: 'No es estrictamente necesario, pero siempre recomendamos un enjuague con agua fría antes de consumir.',
-    backgroundImageUrl: '/faq1.jpg', // Asegúrate de que las imágenes estén en tu carpeta /public
+    backgroundImageUrl: '/faq1.jpg', 
   },
   {
     question: '¿Cuál es la duración de las lechugas?',

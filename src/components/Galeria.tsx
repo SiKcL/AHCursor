@@ -60,8 +60,8 @@ export default function Galeria() {
   )
 
   return (
-    <>
-      <div ref={sliderRef} className="keen-slider">
+    <div className="max-w-4xl mx-auto">
+      <div ref={sliderRef} className="keen-slider max-w-3xl mx-auto">
         <div className="keen-slider__slide number-slide1">
             <Image
               src="/Prod1.jpg"
@@ -174,6 +174,6 @@ export default function Galeria() {
             />
         </div>
       </div>
-    </>
+    </div>
   )
 }

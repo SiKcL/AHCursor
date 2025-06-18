@@ -22,8 +22,6 @@ export default function NosotrosPage() {
           </p>
         </div>
       </section>
-
-      
         <br />
         <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Sobre nosotros</h2>
@@ -38,8 +36,6 @@ export default function NosotrosPage() {
               AGRICOLA HORIZONTE, Empresa productora de hortalizas tradicionales y en hidroponia, perteneciente a la comuna de MELIPILLA.
             </p>
           </div>
-
-
     </div>
   );
 }

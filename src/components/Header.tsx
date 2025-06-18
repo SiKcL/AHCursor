@@ -1,5 +1,5 @@
 "use client";
-
+import { avigea } from "@/lib/fonts";
 import { useState } from "react";
 import { FaFacebookF, FaInstagram, FaWhatsapp } from "react-icons/fa";
 import Image from "next/image";
@@ -23,7 +23,7 @@ export default function Header() {
       />
       </Link>
       
-      <div className="text-2xl font-bold !font-avigea" style={{ color: "var(--primary)" }}>
+      <div className="text-2xl font-bold font-avigea" style={{ color: "var(--primary)" }}>
         <Link href={"/"}>Agrícola Horizonte</Link>
       </div>
 
@@ -31,13 +31,13 @@ export default function Header() {
       <Link href="/nosotros" className="hover:text-[color:var(--secondary)]">
         Nosotros
       </Link>
-      <Link href="#" className="hover:text-[color:var(--secondary)]">
+      <Link href="/productos" className="hover:text-[color:var(--secondary)]">
         Productos
       </Link>
       <Link href="/galeria" className="hover:text-[color:var(--secondary)]">
         Galería
       </Link>
-      <Link href="/preguntas-frecuentes" className="hover:text-[color:var(--secondary)]">
+      <Link href="/preguntas" className="hover:text-[color:var(--secondary)]">
         Preguntas Frecuentes
       </Link>
       </nav>

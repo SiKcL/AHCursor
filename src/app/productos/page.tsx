@@ -1,27 +1,24 @@
 // Ruta: src/app/productos/page.tsx
 
-import prisma from '@/lib/prisma';
 import { Product } from '@prisma/client';
-import ProductoSlider from '@/components/Productos'; 
+import prisma from '@/lib/prisma';
+import ProductoSlider from '@/components/Productos';
 
 async function getProductos() {
   try {
     const productosFromDb = await prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
     });
-
     const productos = productosFromDb.map((producto: Product) => ({
       ...producto,
       precio: producto.precio.toNumber(),
     }));
-
     return productos;
   } catch (error) {
-    console.error("No se pudieron obtener los productos:", error);
+    console.error("Error al obtener productos:", error);
     return [];
   }
 }
-
 export default async function ProductosPage() {
   
   const productos = await getProductos();

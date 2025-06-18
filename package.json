@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@next/font": "^14.2.15",
     "@prisma/client": "^6.9.0",
     "flyonui": "^2.2.0",
     "geist": "^1.4.2",

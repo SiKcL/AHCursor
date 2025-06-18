@@ -1,6 +1,7 @@
 
 import Carousel from "./Carousel";
 import RedesSociales from "./RedesSociales";
+import Link from "next/link";
 
 export default function Hero() {
   return (

@@ -29,9 +29,11 @@ export default function Hero() {
           <p className="mt-4 text-gray-200 text-lg md:text-xl max-w-xl mx-auto">
             Productos agrícolas saludables, sustentables y hechos con amor desde la tierra chilena.
           </p>
+          <Link href={"/productos"}>
           <button className="mt-6 bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800 transition">
             Conoce nuestros productos
           </button>
+          </Link>
         </div>
       </section>
 

@@ -1,5 +1,4 @@
 "use client";
-import { avigea } from "@/lib/fonts";
 import { useState } from "react";
 import { FaFacebookF, FaInstagram, FaWhatsapp } from "react-icons/fa";
 import Image from "next/image";

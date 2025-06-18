@@ -6,7 +6,7 @@ import ProductoSlider from '@/components/Productos';
 
 async function getProductos() {
   try {
-    const productosFromDb = await prisma.producto.findMany({
+    const productosFromDb = await prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
     });
 

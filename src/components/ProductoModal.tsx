@@ -2,7 +2,6 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { Decimal } from '@prisma/client/runtime/library'
 import { useState } from 'react';
 import { useCart } from './CartContext';
 

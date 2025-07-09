@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from 'next/image';
 
 const USER = "admin";
 const PASS = "admin123";
@@ -210,7 +211,7 @@ export default function AdminPage() {
           {productos.map(producto => (
             <div key={producto.id} className="bg-white rounded shadow p-4 flex flex-col">
               {producto.imageUrl && (
-                <img src={producto.imageUrl} alt={producto.nombre} className="w-full h-48 object-cover mb-2 rounded" />
+                <Image src={producto.imageUrl} alt={producto.nombre} width={400} height={192} className="w-full h-48 object-cover mb-2 rounded" />
               )}
               <h4 className="font-bold text-lg">{producto.nombre}</h4>
               <p className="text-gray-600">{producto.descripcion}</p>

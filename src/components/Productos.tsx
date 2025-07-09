@@ -4,7 +4,6 @@ import React, { useState } from 'react'
 import { useKeenSlider } from 'keen-slider/react'
 import 'keen-slider/keen-slider.min.css'
 import Image from 'next/image'
-import { Decimal } from '@prisma/client/runtime/library'
 import ProductoModal from './ProductoModal' 
 import { useCart } from './CartContext';
 

@@ -10,12 +10,11 @@ interface Producto {
   id?: number;
   nombre: string;
   descripcion: string | null;
-  precio: Decimal | number;
+  precio: number;
   imageUrl: string | null;
 }
-const formatPrice = (price: Decimal | number) => {
-  const numericPrice = typeof price === 'number' ? price : price.toNumber();
-  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(numericPrice);
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
 };
 
 
@@ -66,14 +65,14 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
                   addToCart({
                     id: productoId,
                     nombre: producto.nombre,
-                    precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
+                    precio: producto.precio,
                     imageUrl: producto.imageUrl || '',
                   });
                   for (let i = 1; i < cantidad; i++) {
                     addToCart({
                       id: productoId,
                       nombre: producto.nombre,
-                      precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
+                      precio: producto.precio,
                       imageUrl: producto.imageUrl || '',
                     });
                   }

@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!file) {
       return res.status(400).json({ error: 'No se recibió archivo' });
     }
-    const filePath = file.filepath || file.path;
+    const filePath = file.filepath;
     if (!filePath) {
       return res.status(500).json({ error: 'No se pudo determinar la ruta del archivo' });
     }

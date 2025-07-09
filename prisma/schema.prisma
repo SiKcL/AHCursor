@@ -16,4 +16,4 @@ model Product {
   imageUrl    String?
   createdAt   DateTime @default(now())
   @@map("producto")
-} 
+}

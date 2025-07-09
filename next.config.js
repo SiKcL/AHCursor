@@ -3,9 +3,8 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'scontent.fscl15-1.fna.fbcdn.net',
+        hostname: 'res.cloudinary.com',
       },
-      // Puedes agregar más patrones aquí si usas otros dominios
     ],
   },
 };

@@ -13,12 +13,11 @@ interface Producto {
   id: number;
   nombre: string;
   descripcion: string | null;
-  precio: Decimal | number;
+  precio: number;
   imageUrl: string | null;
 }
-const formatPrice = (price: Decimal | number) => {
-  const numericPrice = typeof price === 'number' ? price : price.toNumber();
-  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(numericPrice);
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
 };
 
 
@@ -75,7 +74,7 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                   onClick={() => addToCart({
                     id: producto.id,
                     nombre: producto.nombre,
-                    precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
+                    precio: producto.precio,
                     imageUrl: producto.imageUrl || '',
                   })}
                 >

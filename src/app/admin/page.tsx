@@ -13,21 +13,6 @@ interface Producto {
   imageUrl: string | null;
 }
 
-function subirImagen(file: File): Promise<string> {
-  // Subida simulada: en Next.js sin backend custom, no se puede guardar en /public desde el cliente.
-  // En producción, esto debe hacerse vía una API que reciba el archivo y lo guarde en /public.
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Simulación: en producción, enviar a un endpoint y devolver la URL
-      // Aquí solo devolvemos una URL temporal
-      resolve(reader.result as string);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function AdminPage() {
   const [autenticado, setAutenticado] = useState(false);
   const [usuario, setUsuario] = useState("");
@@ -48,7 +33,6 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (autenticado) cargarProductos();
-    // eslint-disable-next-line
   }, [autenticado]);
 
   async function cargarProductos() {

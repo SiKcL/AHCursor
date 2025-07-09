@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useCart } from './CartContext';
 
 interface Producto {
+  id?: number;
   nombre: string;
   descripcion: string | null;
   precio: Decimal | number;
@@ -21,6 +22,7 @@ const formatPrice = (price: Decimal | number) => {
 export default function ProductoModal({ producto, onClose }: { producto: Producto; onClose: () => void }) {
   const [cantidad, setCantidad] = useState(1);
   const { addToCart } = useCart();
+  const productoId = (producto as Producto & { id: number }).id;
   return (
     <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -62,14 +64,14 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
                 className="bg-blue-700 text-white px-6 py-2 rounded font-semibold hover:bg-blue-800 transition"
                 onClick={() => {
                   addToCart({
-                    id: (producto as any).id,
+                    id: productoId,
                     nombre: producto.nombre,
                     precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
                     imageUrl: producto.imageUrl || '',
                   });
                   for (let i = 1; i < cantidad; i++) {
                     addToCart({
-                      id: (producto as any).id,
+                      id: productoId,
                       nombre: producto.nombre,
                       precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
                       imageUrl: producto.imageUrl || '',

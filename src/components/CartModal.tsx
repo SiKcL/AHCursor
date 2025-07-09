@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCart } from './CartContext';
 import { FaTimes, FaTrash } from 'react-icons/fa';
+import Image from 'next/image';
 
 export default function CartModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -22,7 +23,7 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
             <ul className="divide-y divide-gray-200 mb-4 max-h-60 overflow-y-auto">
               {cart.map(item => (
                 <li key={item.id} className="flex items-center gap-3 py-2">
-                  {item.imageUrl && <img src={item.imageUrl} alt={item.nombre} className="w-12 h-12 object-cover rounded" />}
+                  {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={48} height={48} className="w-12 h-12 object-cover rounded" />}
                   <div className="flex-1">
                     <div className="font-semibold text-blue-900">{item.nombre}</div>
                     <div className="text-sm text-gray-500">${item.precio}</div>

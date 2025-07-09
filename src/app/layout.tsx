@@ -7,6 +7,7 @@ import { avigea } from "@/lib/fonts";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer"; 
+import { CartProvider } from "@/components/CartContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,17 +19,15 @@ export const metadata: Metadata = {
   description: "Productos Agricolas saludables, sustentables y hechos con amor desde la tierra chilena.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${inter.variable} ${avigea.variable} font-sans antialiased bg-green-50 text-gray-900 flex flex-col min-h-screen`}>
-        <Header />
-        <main className="flex-grow w-full">{children}</main>
-        <Footer />
+      <body className={inter.className}>
+        <CartProvider>
+          <Header />
+          <main className="flex-grow w-full">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

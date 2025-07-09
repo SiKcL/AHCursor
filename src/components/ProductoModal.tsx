@@ -3,6 +3,8 @@
 import React from 'react'
 import Image from 'next/image'
 import { Decimal } from '@prisma/client/runtime/library'
+import { useState } from 'react';
+import { useCart } from './CartContext';
 
 interface Producto {
   nombre: string;
@@ -17,6 +19,8 @@ const formatPrice = (price: Decimal | number) => {
 
 
 export default function ProductoModal({ producto, onClose }: { producto: Producto; onClose: () => void }) {
+  const [cantidad, setCantidad] = useState(1);
+  const { addToCart } = useCart();
   return (
     <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -53,7 +57,36 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
             <div className="text-4xl font-bold text-green-600 mt-8">
                 {formatPrice(producto.precio)}
             </div>
-        </div>
+            <div className="flex items-center gap-4 mt-8">
+              <button
+                className="bg-blue-700 text-white px-6 py-2 rounded font-semibold hover:bg-blue-800 transition"
+                onClick={() => {
+                  addToCart({
+                    id: (producto as any).id,
+                    nombre: producto.nombre,
+                    precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
+                    imageUrl: producto.imageUrl || '',
+                  });
+                  for (let i = 1; i < cantidad; i++) {
+                    addToCart({
+                      id: (producto as any).id,
+                      nombre: producto.nombre,
+                      precio: typeof producto.precio === 'number' ? producto.precio : producto.precio.toNumber(),
+                      imageUrl: producto.imageUrl || '',
+                    });
+                  }
+                  onClose();
+                }}
+              >
+                Añadir al carrito
+              </button>
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1 bg-blue-200 rounded text-blue-800 font-bold text-lg" onClick={() => setCantidad(Math.max(1, cantidad - 1))}>-</button>
+                <span className="px-2 text-lg">{cantidad}</span>
+                <button className="px-3 py-1 bg-blue-200 rounded text-blue-800 font-bold text-lg" onClick={() => setCantidad(cantidad + 1)}>+</button>
+              </div>
+            </div>
+          </div>
       </div>
     </div>
   )

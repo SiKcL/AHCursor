@@ -1,97 +1,177 @@
-# Proyecto Agrícola Horizonte
+# AgricolaHorizonte
 
-Sitio web y plataforma de visualización de productos para Agrícola Horizonte, desarrollado con las últimas tecnologías web para ofrecer una experiencia de usuario moderna y eficiente.
+Sitio web para Agricola Horizonte, una empresa especializada en productos hidropónicos y agrícolas.
 
-## Tecnologías Utilizadas
+## 🚀 Características
 
-- **Framework**: Next.js (App Router)
-- **Lenguaje**: TypeScript
-- **Estilos**: Tailwind CSS
-- **Base de Datos**: PostgreSQL
-- **ORM**: Prisma
-- **Componentes de Slider**: Keen Slider
-- **Despliegue (Hosting)**: (Ej: Vercel, Netlify, AWS)
+- **Frontend Moderno**: Desarrollado con Next.js 15 y React 19
+- **Base de Datos**: PostgreSQL con conexión directa usando `pg`
+- **Panel de Administración**: Gestión completa de productos y galería
+- **Subida de Imágenes**: Sistema para subir y gestionar imágenes locales
+- **Diseño Responsivo**: Interfaz moderna con Tailwind CSS
+- **Despliegue Automatizado**: Scripts para despliegue en servidor VPS
 
----
+## 📋 Requisitos
 
-## Cómo Empezar (Guía de Instalación)
+- Node.js 18+
+- PostgreSQL 12+
+- PM2 (para producción)
+- Nginx (opcional, para proxy reverso)
 
-Sigue estos pasos para levantar una copia del proyecto en tu entorno local.
+## 🛠️ Instalación Local
 
-### Prerrequisitos
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/tu-usuario/AgricolaHorizonte.git
+cd AgricolaHorizonte
+```
 
-Asegúrate de tener instalado lo siguiente:
-- [Node.js](https://nodejs.org/) (versión 18 o superior)
-- [pnpm](https://pnpm.io/installation) (o puedes usar `npm` que viene con Node.js)
-- Una instancia de [PostgreSQL](https://www.postgresql.org/download/) corriendo en tu máquina.
+### 2. Instalar dependencias
+```bash
+npm install
+```
 
-### Pasos de Instalación
+### 3. Configurar base de datos local
+```bash
+# Crear archivo .env
+cp .env.example .env
+# Editar .env con tus credenciales de PostgreSQL
+```
 
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone [URL_DEL_REPOSITORIO]
-    cd AgricolaHorizonte-main
-    ```
+### 4. Inicializar base de datos
+```bash
+npm run init-db
+```
 
-2.  **Instalar dependencias:**
-    ```bash
-    npm install
-    ```
+### 5. Ejecutar en desarrollo
+```bash
+npm run dev
+```
 
-3.  **Configurar las variables de entorno:**
-    Crea un archivo llamado `.env` en la raíz del proyecto. Puedes copiar el contenido de `.env.example` si existe, o añadir la siguiente línea, reemplazando los valores con tus credenciales:
-    ```env
-    # .env
-    DATABASE_URL="postgresql://USUARIO:CONTRASEÑA@HOST:PUERTO/NOMBRE_DB"
-    ```
-    *Ejemplo:* `DATABASE_URL="postgresql://postgres:mysecretpassword@localhost:5432/Agricolahorizonte"`
+## 🚀 Despliegue en Servidor
 
-4.  **Sincronizar la Base de Datos:**
-    Este comando leerá tu `schema.prisma` y creará las tablas necesarias en tu base de datos.
-    ```bash
-    npx prisma db push
-    ```
+### Configuración Rápida
+```bash
+# En el servidor SSH
+git clone https://github.com/tu-usuario/AgricolaHorizonte.git
+cd AgricolaHorizonte
+npm install
+npm run init-db
+npm run build
+pm2 start npm --name "agricolahorizonte" -- start
+```
 
-5.  **(Opcional) Poblar la base de datos con datos de ejemplo:**
-    Si configuraste un script de "seed", ejecútalo para añadir productos y FAQs de prueba.
-    ```bash
-    npx prisma db seed
-    ```
+### Configuración Completa
+Ver archivo `DEPLOYMENT.md` para instrucciones detalladas.
 
-6.  **Correr el servidor de desarrollo:**
-    ```bash
-    npm run dev
-    ```
-    La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+## 📁 Estructura del Proyecto
 
----
+```
+AgricolaHorizonte/
+├── src/
+│   ├── app/                 # Páginas y API routes de Next.js
+│   │   ├── admin/          # Panel de administración
+│   │   ├── api/            # Endpoints de la API
+│   │   ├── productos/      # Página de productos
+│   │   ├── galeria/        # Página de galería
+│   │   └── nosotros/       # Página sobre nosotros
+│   ├── components/         # Componentes React reutilizables
+│   └── lib/               # Utilidades y configuración
+├── public/                # Archivos estáticos
+│   └── uploads/          # Imágenes subidas por el admin
+├── scripts/              # Scripts de automatización
+│   ├── init-db.js       # Inicialización de base de datos
+│   └── deploy.sh        # Script de despliegue
+└── prisma/              # Configuración de Prisma (eliminado)
+```
 
-## Estructura del Proyecto
+## 🗄️ Base de Datos
 
-Una breve descripción de las carpetas más importantes:
+### Tablas Principales
 
--   `prisma/`: Contiene el esquema de la base de datos (`schema.prisma`) y el script para poblar la base de datos (`seed.ts`).
--   `public/`: Almacena archivos estáticos como imágenes y videos.
--   `src/app/`: Contiene las rutas y páginas de la aplicación, siguiendo la estructura del App Router de Next.js.
--   `src/components/`: Almacena todos los componentes de React reutilizables (ej: `ProductoSlider`, `FaqSlider`, `ProductoModal`).
--   `src/lib/`: Contiene librerías y configuraciones auxiliares, como la instancia del cliente de Prisma (`prisma.ts`).
+#### `productos`
+- `id`: Identificador único
+- `nombre`: Nombre del producto
+- `descripcion`: Descripción detallada
+- `precio`: Precio del producto
+- `imagen`: Ruta de la imagen
+- `categoria`: Categoría del producto
+- `stock`: Cantidad disponible
+- `created_at`: Fecha de creación
+- `updated_at`: Fecha de actualización
 
----
+#### `galeria`
+- `id`: Identificador único
+- `titulo`: Título de la imagen
+- `descripcion`: Descripción de la imagen
+- `imagen`: Ruta de la imagen
+- `categoria`: Categoría de la imagen
+- `created_at`: Fecha de creación
 
-## Componentes Clave
+## 🔧 Scripts Disponibles
 
-### `ProductoSlider.tsx`
-- **Propósito**: Muestra un carrusel interactivo de los productos obtenidos de la base de datos.
-- **Props**:
-    - `productos`: Un array de objetos `Producto`, donde cada objeto coincide con el modelo de Prisma.
+- `npm run dev`: Ejecutar en modo desarrollo
+- `npm run build`: Construir para producción
+- `npm run start`: Ejecutar en modo producción
+- `npm run init-db`: Inicializar base de datos
+- `npm run deploy`: Ejecutar script de despliegue (en servidor)
 
-### `ProductoModal.tsx`
-- **Propósito**: Muestra una ventana modal con la vista detallada de un producto cuando el usuario hace clic en él.
-- **Props**:
-    - `producto`: El objeto del producto seleccionado.
-    - `onClose`: Una función que se ejecuta para cerrar el modal.
+## 🌐 API Endpoints
 
-### `FaqSlider.tsx`
-- **Propósito**: Muestra un slider a pantalla completa con las preguntas y respuestas frecuentes.
-- **Props**:
-    - `faqs`: Un array de objetos `FaqItem` que contiene `question`, `answer` y `backgroundImageUrl`.
+### Productos
+- `GET /api/productos`: Obtener todos los productos
+- `POST /api/productos`: Crear nuevo producto
+- `PUT /api/productos/[id]`: Actualizar producto
+- `DELETE /api/productos/[id]`: Eliminar producto
+
+### Galería
+- `GET /api/galeria`: Obtener todas las imágenes
+- `POST /api/galeria`: Subir nueva imagen
+- `DELETE /api/galeria/[id]`: Eliminar imagen
+
+### Subida de Archivos
+- `POST /api/upload`: Subir imagen al servidor
+
+## 🔒 Variables de Entorno
+
+Crear archivo `.env` con las siguientes variables:
+
+```env
+# Base de Datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=Agricolahorizonte
+DB_USER=tu_usuario
+DB_PASSWORD=tu_contraseña
+
+# Servidor
+PORT=3000
+NODE_ENV=production
+
+# Imágenes
+UPLOAD_DIR=public/uploads
+```
+
+## 📸 Gestión de Imágenes
+
+El sistema soporta dos tipos de imágenes:
+1. **Imágenes locales**: Subidas desde el panel admin, guardadas en `public/uploads/`
+2. **URLs externas**: Enlaces directos a imágenes en la web
+
+Las imágenes se eliminan automáticamente del servidor cuando se borra o edita un producto.
+
+## 🚀 Próximas Características
+
+- [ ] Integración con Webpay para pagos
+- [ ] Sistema de usuarios y autenticación
+- [ ] Panel de administración mejorado
+- [ ] Optimización de imágenes automática
+- [ ] Sistema de notificaciones
+
+## 📞 Soporte
+
+Para soporte técnico o preguntas sobre el proyecto, contactar al equipo de desarrollo.
+
+## 📄 Licencia
+
+Este proyecto es privado y pertenece a Agricola Horizonte.

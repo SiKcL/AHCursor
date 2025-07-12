@@ -10,7 +10,8 @@ interface Producto {
   nombre: string;
   descripcion: string | null;
   precio: number;
-  imageUrl: string | null;
+  imagen?: string | null;
+  imageUrl?: string | null;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -18,9 +19,14 @@ const formatPrice = (price: number) => {
 
 
 export default function ProductoModal({ producto, onClose }: { producto: Producto; onClose: () => void }) {
+  // Mapear imagen a imageUrl
+  const productoMapeado = {
+    ...producto,
+    imageUrl: producto.imageUrl || producto.imagen || '',
+  };
   const [cantidad, setCantidad] = useState(1);
   const { addToCart } = useCart();
-  const productoId = (producto as Producto & { id: number }).id;
+  const productoId = (productoMapeado as Producto & { id: number }).id;
   return (
     <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -40,8 +46,8 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
         <div className="w-full md:w-1/2 p-4 flex items-center justify-center bg-gray-100">
             <div className="relative w-full h-full min-h-[400px]">
                 <Image
-                    src={producto.imageUrl || '/placeholder.png'}
-                    alt={`Imagen de ${producto.nombre}`}
+                    src={productoMapeado.imageUrl || '/placeholder.png'}
+                    alt={`Imagen de ${productoMapeado.nombre}`}
                     fill
                     className="object-contain" //
                 />
@@ -50,12 +56,12 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
 
         {/* Sección de la Descripción */}
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
-            <h2 className="text-4xl font-bold text-gray-900">{producto.nombre}</h2>
+            <h2 className="text-4xl font-bold text-gray-900">{productoMapeado.nombre}</h2>
             <p className="text-gray-700 mt-4 text-base leading-relaxed">
-                {producto.descripcion || 'Este producto no tiene una descripción detallada.'}
+                {productoMapeado.descripcion || 'Este producto no tiene una descripción detallada.'}
             </p>
             <div className="text-4xl font-bold text-green-600 mt-8">
-                {formatPrice(producto.precio)}
+                {formatPrice(productoMapeado.precio)}
             </div>
             <div className="flex items-center gap-4 mt-8">
               <button
@@ -63,16 +69,16 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
                 onClick={() => {
                   addToCart({
                     id: productoId,
-                    nombre: producto.nombre,
-                    precio: producto.precio,
-                    imageUrl: producto.imageUrl || '',
+                    nombre: productoMapeado.nombre,
+                    precio: productoMapeado.precio,
+                    imageUrl: productoMapeado.imageUrl || '',
                   });
                   for (let i = 1; i < cantidad; i++) {
                     addToCart({
                       id: productoId,
-                      nombre: producto.nombre,
-                      precio: producto.precio,
-                      imageUrl: producto.imageUrl || '',
+                      nombre: productoMapeado.nombre,
+                      precio: productoMapeado.precio,
+                      imageUrl: productoMapeado.imageUrl || '',
                     });
                   }
                   onClose();
@@ -86,7 +92,7 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
                 <button className="px-3 py-1 bg-blue-200 rounded text-blue-800 font-bold text-lg" onClick={() => setCantidad(cantidad + 1)}>+</button>
               </div>
             </div>
-          </div>
+        </div>
       </div>
     </div>
   )

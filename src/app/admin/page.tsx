@@ -11,7 +11,7 @@ interface Producto {
   nombre: string;
   descripcion: string | null;
   precio: number;
-  imageUrl: string | null;
+  imagen: string | null;
 }
 
 export default function AdminPage() {
@@ -26,7 +26,7 @@ export default function AdminPage() {
     nombre: "",
     descripcion: "",
     precio: 0,
-    imageUrl: "",
+    imagen: "",
     file: null as File | null,
   });
   const [editando, setEditando] = useState(false);
@@ -61,13 +61,13 @@ export default function AdminPage() {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
-    setForm(f => ({ ...f, file }));
+    setForm(f => ({ ...f, file, imagen: file ? '' : f.imagen })); // Limpiar link si se sube archivo
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setCargando(true);
-    let imageUrl = form.imageUrl;
+    let imagen = form.imagen;
     if (form.file) {
       // Subir la imagen al endpoint /api/upload
       const data = new FormData();
@@ -78,14 +78,14 @@ export default function AdminPage() {
       });
       const result = await res.json();
       if (result.url) {
-        imageUrl = result.url;
+        imagen = result.url;
       }
     }
     const body = {
       nombre: form.nombre,
       descripcion: form.descripcion,
       precio: form.precio,
-      imageUrl,
+      imagen,
     };
     if (editando) {
       await fetch("/api/productos", {
@@ -102,7 +102,7 @@ export default function AdminPage() {
       });
       setMensaje("¡Producto añadido con éxito!");
     }
-    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imageUrl: "", file: null });
+    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null });
     setEditando(false);
     cargarProductos();
     setCargando(false);
@@ -113,7 +113,7 @@ export default function AdminPage() {
     setForm({
       ...producto,
       descripcion: producto.descripcion ?? "",
-      imageUrl: producto.imageUrl ?? "",
+      imagen: producto.imagen ?? "",
       file: null
     });
     setEditando(true);
@@ -188,7 +188,7 @@ export default function AdminPage() {
         </div>
         <div className="mb-3">
           <label className="block mb-1">Imagen (URL)</label>
-          <input name="imageUrl" value={form.imageUrl} onChange={handleFormChange} className="w-full border px-3 py-2 rounded" placeholder="https://..." />
+          <input name="imagen" value={form.imagen} onChange={handleFormChange} className="w-full border px-3 py-2 rounded" placeholder="https://..." disabled={!!form.file} />
         </div>
         <div className="mb-3">
           <label className="block mb-1">O subir imagen local</label>
@@ -200,9 +200,23 @@ export default function AdminPage() {
             {form.file && <span className="text-green-800 text-sm font-medium">{form.file.name}</span>}
           </div>
         </div>
+        {/* Previsualización de la imagen actual */}
+        {(form.imagen || form.file) && (
+          <div className="mb-3 flex flex-col items-center">
+            <span className="text-xs text-gray-500 mb-1">Previsualización:</span>
+            <div className="relative w-32 h-32 border rounded overflow-hidden bg-gray-100">
+              <Image
+                src={form.file ? URL.createObjectURL(form.file) : form.imagen || '/placeholder.png'}
+                alt="Previsualización"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </div>
+        )}
         <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition" disabled={cargando}>{editando ? "Actualizar" : "Crear"}</button>
         {editando && (
-          <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imageUrl: "", file: null }); }}>Cancelar</button>
+          <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null }); }}>Cancelar</button>
         )}
       </form>
       <h3 className="text-lg font-semibold mb-4">Productos</h3>
@@ -210,8 +224,8 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {productos.map(producto => (
             <div key={producto.id} className="bg-white rounded shadow p-4 flex flex-col">
-              {producto.imageUrl && (
-                <Image src={producto.imageUrl} alt={producto.nombre} width={400} height={192} className="w-full h-48 object-cover mb-2 rounded" />
+              {producto.imagen && (
+                <Image src={producto.imagen} alt={producto.nombre} width={400} height={192} className="w-full h-48 object-cover mb-2 rounded" />
               )}
               <h4 className="font-bold text-lg">{producto.nombre}</h4>
               <p className="text-gray-600">{producto.descripcion}</p>

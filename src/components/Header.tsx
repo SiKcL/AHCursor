@@ -26,7 +26,7 @@ export default function Header() {
       />
       </Link>
       
-      <div className="text-2xl font-bold font-avigea" style={{ color: "var(--primary)" }}>
+      <div className="text-4xl font-bold" style={{ color: "var(--primary)", fontFamily: 'var(--font-avigea)' }}>
         <Link href={"/"}>Agrícola Horizonte</Link>
       </div>
 

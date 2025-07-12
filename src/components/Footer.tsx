@@ -4,7 +4,7 @@ export default function Footer() {
   return (
     <footer
       className="w-full text-white py-8 mt-10"
-      style={{ backgroundColor: "var(--secondary)" }}
+      style={{ backgroundColor: "#070e5c" }}
     >
       <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-20 flex justify-between items-center flex-wrap gap-8">
         {/* Logo */}

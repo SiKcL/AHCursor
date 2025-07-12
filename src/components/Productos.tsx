@@ -13,7 +13,8 @@ interface Producto {
   nombre: string;
   descripcion: string | null;
   precio: number;
-  imageUrl: string | null;
+  imagen?: string | null;
+  imageUrl?: string | null;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -21,6 +22,11 @@ const formatPrice = (price: number) => {
 
 
 export default function ProductoSlider({ productos }: { productos: Producto[] }) {
+  // Mapear productos para que usen imageUrl
+  const productosMapeados = productos.map((p) => ({
+    ...p,
+    imageUrl: p.imageUrl || p.imagen || '',
+  }));
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const { addToCart } = useCart();
 
@@ -43,12 +49,12 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
   });
   
 
-  if (productos.length === 0) return null;
+  if (productosMapeados.length === 0) return null;
 
   return (
     <>
       <div ref={sliderRef} className="keen-slider">
-        {productos.map((producto) => (
+        {productosMapeados.map((producto) => (
           <div 
             key={producto.id} 
             className="keen-slider__slide group"
@@ -65,8 +71,8 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
               </div>
               <div className="p-4 text-center flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
-                  <p className="text-lg font-bold text-green-600 mt-1">{formatPrice(producto.precio)}</p>
+                <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
+                <p className="text-lg font-bold text-green-600 mt-1">{formatPrice(producto.precio)}</p>
                 </div>
                 <button
                   className="mt-3 w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"

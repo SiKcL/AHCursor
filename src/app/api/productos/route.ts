@@ -1,42 +1,62 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import pool from '@/lib/db';
+import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
 
+function isLocalImage(url: string | null) {
+  return url && url.startsWith('/uploads/');
+}
+
 export async function GET() {
-  const productos = await prisma.product.findMany();
-  return NextResponse.json(productos);
+  const { rows } = await pool.query('SELECT * FROM productos');
+  return NextResponse.json(rows);
 }
 
-export async function POST(req: NextRequest) {
-  const data = await req.json();
-  const producto = await prisma.product.create({ data });
-  return NextResponse.json(producto);
+export async function POST(request: Request) {
+  const data = await request.json();
+  const { nombre, descripcion, precio, imagen } = data;
+  const result = await pool.query(
+    'INSERT INTO productos (nombre, descripcion, precio, imagen) VALUES ($1, $2, $3, $4) RETURNING *',
+    [nombre, descripcion, precio, imagen]
+  );
+  return NextResponse.json(result.rows[0]);
 }
 
-export async function PUT(req: NextRequest) {
-  const data = await req.json();
+export async function PUT(request: Request) {
+  const data = await request.json();
   const { id, ...rest } = data;
-  const producto = await prisma.product.update({ where: { id }, data: rest });
-  return NextResponse.json(producto);
-}
-
-export async function DELETE(req: NextRequest) {
-  const { id } = await req.json();
-  // Buscar el producto para obtener la URL de la imagen
-  const producto = await prisma.product.findUnique({ where: { id } });
-  if (producto && producto.imageUrl && producto.imageUrl.startsWith('/')) {
-    // Es una imagen local, intentar borrar el archivo
-    const filePath = path.join(process.cwd(), 'public', producto.imageUrl.replace(/^\//, ''));
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } catch (e) {
-      // No hacer nada si falla, solo log opcional
-      console.error('No se pudo borrar la imagen local:', e);
+  // Obtener la imagen anterior
+  const { rows } = await pool.query('SELECT imagen FROM productos WHERE id = $1', [id]);
+  const oldImage = rows[0]?.imagen || null;
+  const newImage = rest.imagen;
+  // Si la imagen cambió y la anterior era local, eliminarla
+  if (oldImage && isLocalImage(oldImage) && oldImage !== newImage) {
+    const filePath = path.join(process.cwd(), 'public', oldImage);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
     }
   }
-  await prisma.product.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  const fields = Object.keys(rest);
+  const values = Object.values(rest);
+  const setString = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
+  const result = await pool.query(
+    `UPDATE productos SET ${setString} WHERE id = $1 RETURNING *`,
+    [id, ...values]
+  );
+  return NextResponse.json(result.rows[0]);
+}
+
+export async function DELETE(request: Request) {
+  const { id } = await request.json();
+  // Obtener la imagen antes de borrar
+  const { rows } = await pool.query('SELECT imagen FROM productos WHERE id = $1', [id]);
+  const image = rows[0]?.imagen || null;
+  if (image && isLocalImage(image)) {
+    const filePath = path.join(process.cwd(), 'public', image);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+  await pool.query('DELETE FROM productos WHERE id = $1', [id]);
+  return NextResponse.json({ success: true });
 } 

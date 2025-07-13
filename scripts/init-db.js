@@ -50,6 +50,17 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla galeria creada/verificada');
 
+    // Crear tabla de redes sociales
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS redes (
+        id SERIAL PRIMARY KEY,
+        url TEXT NOT NULL,
+        titulo VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tabla redes creada/verificada');
+
     // Insertar algunos datos de ejemplo
     const productosEjemplo = [
       {

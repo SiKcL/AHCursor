@@ -2,8 +2,10 @@
 import { useKeenSlider } from 'keen-slider/react'
 import 'keen-slider/keen-slider.min.css'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 
 export default function CaruselImagenes() {
+    const [imagenes, setImagenes] = useState<any[]>([]);
     const [ref] = useKeenSlider<HTMLDivElement>({
       loop: true,
       rtl: true,
@@ -11,63 +13,33 @@ export default function CaruselImagenes() {
         perView: 3,
         spacing: 10,
       },
-    })
+    });
+
+    useEffect(() => {
+      fetch('/api/galeria')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setImagenes(data);
+        });
+    }, []);
+
+    if (!imagenes.length) {
+      return <div className="text-center text-gray-500">No hay imágenes en la galería.</div>;
+    }
+
     return (
       <div ref={ref} className="keen-slider">
-        <div className="keen-slider__slide number-slide1">
+        {imagenes.map((img, idx) => (
+          <div className="keen-slider__slide" key={img.id || idx}>
             <Image
-                src="/Prod1.jpg"
-                alt="Imagen 1"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
+              src={img.imagen}
+              alt={img.titulo || `Imagen ${idx + 1}`}
+              width={500}
+              height={300}
+              className="w-full h-auto object-cover"
             />
-        </div>
-        <div className="keen-slider__slide number-slide2">
-            <Image
-                src="/Prod2.jpg"
-                alt="Imagen 2"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
-            />
-        </div>
-        <div className="keen-slider__slide number-slide3">
-            <Image
-                src="/Prod3.jpg"
-                alt="Imagen 3"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
-            />
-        </div>
-        <div className="keen-slider__slide number-slide4">
-            <Image
-                src="/Prod4.jpg"
-                alt="Imagen 4"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
-            />
-        </div>
-        <div className="keen-slider__slide number-slide5">
-            <Image
-                src="/Prod5.jpg"
-                alt="Imagen 5"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
-            />
-        </div>
-        <div className="keen-slider__slide number-slide6">
-            <Image
-                src="/Burg.jpg"
-                alt="Imagen 6"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover"
-            />
-        </div>
+          </div>
+        ))}
       </div>
-    )
+    );
   }

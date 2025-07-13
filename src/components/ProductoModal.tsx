@@ -17,8 +17,12 @@ const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
 };
 
+interface ProductoModalProps {
+  producto: Producto;
+  onClose: () => void;
+}
 
-export default function ProductoModal({ producto, onClose }: { producto: Producto; onClose: () => void }) {
+export default function ProductoModal({ producto, onClose }: ProductoModalProps) {
   // Mapear imagen a imageUrl
   const productoMapeado = {
     ...producto,
@@ -27,6 +31,8 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
   const [cantidad, setCantidad] = useState(1);
   const { addToCart } = useCart();
   const productoId = (productoMapeado as Producto & { id: number }).id;
+
+  // Eliminar lógica de favoritos
   return (
     <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -56,7 +62,10 @@ export default function ProductoModal({ producto, onClose }: { producto: Product
 
         {/* Sección de la Descripción */}
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
-            <h2 className="text-4xl font-bold text-gray-900">{productoMapeado.nombre}</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-4xl font-bold text-gray-900">{productoMapeado.nombre}</h2>
+              {/* Quitar estrella de favorito */}
+            </div>
             <p className="text-gray-700 mt-4 text-base leading-relaxed">
                 {productoMapeado.descripcion || 'Este producto no tiene una descripción detallada.'}
             </p>

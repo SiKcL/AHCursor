@@ -4,8 +4,14 @@ import 'keen-slider/keen-slider.min.css'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
+interface ImagenGaleria {
+  id: number;
+  imagen: string;
+  titulo?: string;
+}
+
 export default function CaruselImagenes() {
-    const [imagenes, setImagenes] = useState<any[]>([]);
+    const [imagenes, setImagenes] = useState<ImagenGaleria[]>([]);
     const [ref] = useKeenSlider<HTMLDivElement>({
       loop: true,
       rtl: true,

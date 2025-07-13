@@ -9,6 +9,12 @@ import {
 } from "keen-slider/react"
 import "keen-slider/keen-slider.min.css"
 
+interface ImagenGaleria {
+  id: number;
+  imagen: string;
+  titulo?: string;
+}
+
 function ThumbnailPlugin(
   mainRef: MutableRefObject<KeenSliderInstance | null>
 ): KeenSliderPlugin {
@@ -45,7 +51,7 @@ function ThumbnailPlugin(
 }
 
 export default function Galeria() {
-  const [imagenes, setImagenes] = useState<any[]>([]);
+  const [imagenes, setImagenes] = useState<ImagenGaleria[]>([]);
   const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
     initial: 0,
   });

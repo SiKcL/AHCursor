@@ -5,12 +5,22 @@ import { useEffect, useState, useRef } from 'react';
 // Declarar window.FB para TypeScript
 declare global {
     interface Window {
-        FB: any;
+        FB: {
+            XFBML: {
+                parse: () => void;
+            };
+        };
     }
 }
 
+interface EnlaceRed {
+  id: number;
+  url: string;
+  titulo?: string;
+}
+
 export default function SocialReels() {
-    const [enlaces, setEnlaces] = useState<any[]>([]);
+    const [enlaces, setEnlaces] = useState<EnlaceRed[]>([]);
     const [facebookLoaded, setFacebookLoaded] = useState(false);
     const fbContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -21,7 +31,7 @@ export default function SocialReels() {
                 if (Array.isArray(data)) {
                     setEnlaces(data);
                     // Verificar si hay embeds de Facebook para cargar el script
-                    const hasFacebookEmbeds = data.some((enlace: any) => 
+                    const hasFacebookEmbeds = data.some((enlace: EnlaceRed) => 
                         enlace.url.includes('class="fb-post"') || enlace.url.includes('facebook.com')
                     );
                     if (hasFacebookEmbeds && !facebookLoaded) {
@@ -58,7 +68,7 @@ export default function SocialReels() {
         }
     };
 
-    const renderEmbed = (enlace: any, index: number) => {
+    const renderEmbed = (enlace: EnlaceRed, index: number) => {
         const { url, titulo } = enlace;
         const title = titulo || `Red social ${index + 1}`;
 

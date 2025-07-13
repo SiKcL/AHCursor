@@ -29,6 +29,7 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
   }));
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const { addToCart } = useCart();
+  // Eliminar lógica de favoritos
 
  
   const [sliderRef] = useKeenSlider<HTMLDivElement>({
@@ -59,7 +60,8 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
             key={producto.id} 
             className="keen-slider__slide group"
           >
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer flex flex-col">
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer flex flex-col relative">
+              {/* Quitar estrella de favorito */}
               {/* Contenedor de la imagen con aspect ratio para que no se deforme */}
               <div className="relative w-full aspect-[4/5] bg-gray-100" onClick={() => setProductoSeleccionado(producto)}>
                 <Image

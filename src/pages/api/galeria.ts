@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           [titulo, descripcion, imageUrl, categoria]
         );
         res.status(200).json(result.rows[0]);
-      } catch (error) {
+      } catch {
         res.status(500).json({ error: 'Error al guardar en la base de datos' });
       }
     });
@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { rows } = await pool.query('SELECT * FROM galeria ORDER BY created_at DESC');
       res.status(200).json(rows);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Error al obtener la galería' });
     }
   } else if (req.method === 'DELETE') {
@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       await pool.query('DELETE FROM galeria WHERE id = $1', [id]);
       res.status(200).json({ success: true });
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Error al eliminar la imagen' });
     }
   } else {

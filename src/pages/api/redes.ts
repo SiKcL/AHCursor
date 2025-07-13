@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { rows } = await pool.query('SELECT * FROM redes ORDER BY created_at DESC');
       res.status(200).json(rows);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Error al obtener los enlaces de redes sociales' });
     }
   } else if (req.method === 'POST') {
@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [url, titulo || '']
       );
       res.status(200).json(result.rows[0]);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Error al guardar el enlace' });
     }
   } else if (req.method === 'DELETE') {
@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       await pool.query('DELETE FROM redes WHERE id = $1', [id]);
       res.status(200).json({ success: true });
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Error al eliminar el enlace' });
     }
   } else {

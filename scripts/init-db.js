@@ -110,6 +110,27 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla pedidos creada/verificada');
 
+    // Crear tabla de facturación
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS facturacion (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        razon_social VARCHAR(100) NOT NULL,
+        rut VARCHAR(20) NOT NULL,
+        giro VARCHAR(40) NOT NULL,
+        telefono VARCHAR(30) NOT NULL,
+        region VARCHAR(100) NOT NULL,
+        comuna VARCHAR(100) NOT NULL,
+        calle VARCHAR(255) NOT NULL,
+        numero VARCHAR(20) NOT NULL,
+        depto_oficina VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tabla facturacion creada/verificada');
+
+    // Eliminar tabla de favoritos (no crear más)
+
     // Insertar algunos datos de ejemplo
     const productosEjemplo = [
       {

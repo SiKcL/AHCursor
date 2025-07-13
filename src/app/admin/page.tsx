@@ -14,8 +14,34 @@ interface Producto {
   imagen: string | null;
 }
 
+interface ImagenGaleria {
+  id: number;
+  imagen: string;
+  titulo?: string;
+}
+interface EnlaceRed {
+  id: number;
+  url: string;
+  titulo?: string;
+}
+
+interface UsuarioResumen {
+  id: number;
+  nombre: string;
+  apellido: string;
+  rut: string;
+  email: string;
+  factura: boolean;
+  direccion?: {
+    region: string;
+    comuna: string;
+    calle: string;
+    numero: string;
+  } | null;
+}
+
 function AdminGaleria() {
-  const [imagenes, setImagenes] = useState([]);
+  const [imagenes, setImagenes] = useState<ImagenGaleria[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +96,7 @@ function AdminGaleria() {
           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
         />
         {preview && (
-          <img src={preview} alt="Previsualización" className="w-20 h-20 object-cover rounded border" />
+          <Image src={preview} alt="Previsualización" width={80} height={80} className="w-20 h-20 object-cover rounded border" />
         )}
         <button
           type="submit"
@@ -81,9 +107,9 @@ function AdminGaleria() {
         </button>
       </form>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.isArray(imagenes) && imagenes.map((img: any) => (
+        {Array.isArray(imagenes) && imagenes.map((img) => (
           <div key={img.id} className="border rounded p-2 flex flex-col items-center bg-gray-50">
-            <img src={img.imagen} alt={img.titulo || 'Imagen galería'} className="w-24 h-24 object-cover rounded mb-2" />
+            <Image src={img.imagen} alt={img.titulo || 'Imagen galería'} width={100} height={100} className="w-24 h-24 object-cover rounded mb-2" />
             <div className="text-sm text-center">{img.titulo}</div>
             <button
               onClick={() => handleDelete(img.id)}
@@ -99,7 +125,7 @@ function AdminGaleria() {
 }
 
 function AdminRedes() {
-  const [enlaces, setEnlaces] = useState<any[]>([]);
+  const [enlaces, setEnlaces] = useState<EnlaceRed[]>([]);
   const [url, setUrl] = useState('');
   const [titulo, setTitulo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -186,7 +212,7 @@ function AdminRedes() {
             <strong>Para Instagram:</strong>
             <ul className="ml-4 mt-1 space-y-1">
               <li>• Ve al post de Instagram</li>
-              <li>• Haz clic en "Compartir" → "Insertar"</li>
+              <li>• Haz clic en &quot;Compartir&quot; → &quot;Insertar&quot;</li>
               <li>• Copia el código que aparece</li>
               <li>• Pégalo en el campo de abajo</li>
             </ul>
@@ -196,7 +222,7 @@ function AdminRedes() {
             <strong>Para Facebook:</strong>
             <ul className="ml-4 mt-1 space-y-1">
               <li>• Ve al post de Facebook</li>
-              <li>• Haz clic en los 3 puntos (...) → "Insertar"</li>
+              <li>• Haz clic en los 3 puntos (...) → &quot;Insertar&quot;</li>
               <li>• Copia el código que aparece</li>
               <li>• Pégalo en el campo de abajo</li>
             </ul>
@@ -206,7 +232,7 @@ function AdminRedes() {
             <strong>Para YouTube:</strong>
             <ul className="ml-4 mt-1 space-y-1">
               <li>• Ve al video de YouTube</li>
-              <li>• Haz clic en "Compartir" → "Insertar"</li>
+              <li>• Haz clic en &quot;Compartir&quot; → &quot;Insertar&quot;</li>
               <li>• Copia el código iframe</li>
               <li>• Pégalo en el campo de abajo</li>
             </ul>
@@ -292,7 +318,7 @@ function AdminRedes() {
           <p className="text-gray-500 text-sm">No hay enlaces agregados aún.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {enlaces.map((enlace: any) => (
+            {enlaces.map((enlace) => (
               <div key={enlace.id} className="border rounded p-3 bg-gray-50">
                 <div className="text-sm font-medium mb-1">{enlace.titulo || 'Sin título'}</div>
                 <div className="text-xs text-gray-600 mb-2 break-all">
@@ -331,8 +357,13 @@ export default function AdminPage() {
   const [editando, setEditando] = useState(false);
   const [mensaje, setMensaje] = useState("");
 
+  // Estado para usuarios
+  const [usuarios, setUsuarios] = useState<UsuarioResumen[]>([]);
+  const [cargandoUsuarios, setCargandoUsuarios] = useState(false);
+
   useEffect(() => {
     if (autenticado) cargarProductos();
+    if (autenticado) cargarUsuarios();
   }, [autenticado]);
 
   async function cargarProductos() {
@@ -341,6 +372,14 @@ export default function AdminPage() {
     const data = await res.json();
     setProductos(data);
     setCargando(false);
+  }
+
+  async function cargarUsuarios() {
+    setCargandoUsuarios(true);
+    const res = await fetch('/api/user?section=all');
+    const data = await res.json();
+    setUsuarios(Array.isArray(data) ? data : []);
+    setCargandoUsuarios(false);
   }
 
   const handleLogin = (e: React.FormEvent) => {
@@ -544,6 +583,44 @@ export default function AdminPage() {
       <AdminGaleria />
       {/* Contenedor de Redes Sociales */}
       <AdminRedes />
+      {/* Tabla de usuarios registrados */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold mb-4 border-b pb-2">Usuarios registrados</h2>
+        {cargandoUsuarios ? (
+          <p>Cargando usuarios...</p>
+        ) : usuarios.length === 0 ? (
+          <p>No hay usuarios registrados.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-2 border">Nombre</th>
+                  <th className="p-2 border">RUT</th>
+                  <th className="p-2 border">Correo</th>
+                  <th className="p-2 border">Factura</th>
+                  <th className="p-2 border">Dirección</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuarios.map((u: UsuarioResumen) => (
+                  <tr key={u.id}>
+                    <td className="p-2 border">{u.nombre} {u.apellido}</td>
+                    <td className="p-2 border">{u.rut}</td>
+                    <td className="p-2 border">{u.email}</td>
+                    <td className="p-2 border text-center">{u.factura ? 'Sí' : 'No'}</td>
+                    <td className="p-2 border text-center">
+                      {u.direccion ? (
+                        <span>{u.direccion.region}, {u.direccion.comuna}, {u.direccion.calle} #{u.direccion.numero}</span>
+                      ) : 'No'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

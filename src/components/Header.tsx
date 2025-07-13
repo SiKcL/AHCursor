@@ -1,27 +1,23 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaShoppingCart, FaUserCircle } from "react-icons/fa";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "./CartContext";
 import CartModal from "./CartModal";
 import { useRouter } from "next/navigation";
+import { useAuth } from './AuthContext';
 
 export default function Header() {
   const [showMenu, setShowMenu] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const { cart } = useCart();
   const [userMenu, setUserMenu] = useState(false);
-  const [isAuth, setIsAuth] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    setIsAuth(!!localStorage.getItem('token'));
-  }, []);
+  const { isAuth, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuth(false);
+    logout();
     setUserMenu(false);
     router.push('/login');
   };

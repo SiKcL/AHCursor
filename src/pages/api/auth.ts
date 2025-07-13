@@ -30,12 +30,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, nombre, apellido, email` ,
           [nombre, apellido, rut, fecha_nacimiento, email, telefono, hash, !!factura]
         );
-        client.release();
         const user = result.rows[0];
+        // Guardar datos de facturación si corresponde
+        if (factura && data.datos_factura) {
+          const f = data.datos_factura;
+          await client.query(
+            `INSERT INTO facturacion (usuario_id, razon_social, rut, giro, telefono, region, comuna, calle, numero, depto_oficina)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)` ,
+            [user.id, f.razon_social, f.rut, f.giro, f.telefono, f.region, f.comuna, f.calle, f.numero, f.depto_oficina || null]
+          );
+        }
+        client.release();
         // Generar token
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
         return res.status(201).json({ user, token });
-      } catch (err) {
+      } catch {
         return res.status(500).json({ error: 'Error registrando usuario.' });
       }
     } else if (action === 'login') {
@@ -61,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // No enviar hash
         delete user.password_hash;
         return res.status(200).json({ user, token });
-      } catch (err) {
+      } catch {
         return res.status(500).json({ error: 'Error en login.' });
       }
     } else {

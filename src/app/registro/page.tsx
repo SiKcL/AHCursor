@@ -13,12 +13,44 @@ export default function RegistroPage() {
   const [loading, setLoading] = useState(false);
   const [acepta, setAcepta] = useState(false);
 
-  const handleChange = (e: any) => {
-    const { name, value, type, checked } = e.target;
-    setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
+  const REGIONES = [
+    'Metropolitana',
+    'Arica y Parinacota',
+    'Tarapacá',
+    'Antofagasta',
+    'Atacama',
+    'Coquimbo',
+    'Valparaíso',
+    'Libertador General Bernardo O\'Higgins',
+    'Maule',
+    'Ñuble',
+    'Biobío',
+    'La Araucanía',
+    'Los Ríos',
+    'Los Lagos',
+    'Aysén del General Carlos Ibáñez del Campo',
+    'Magallanes y la Antártica Chilena',
+  ];
+
+  const [facturaForm, setFacturaForm] = useState({
+    razon_social: '', rut: '', giro: '', telefono: '', region: '', comuna: '', calle: '', numero: '', depto_oficina: ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox' && e.target instanceof HTMLInputElement) {
+      setForm(f => ({ ...f, [name]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setForm(f => ({ ...f, [name]: value }));
+    }
   };
 
-  const handleSubmit = async (e: any) => {
+  const handleFacturaChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFacturaForm(f => ({ ...f, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -45,6 +77,11 @@ export default function RegistroPage() {
     if (!acepta) {
       setError('Debes aceptar los Términos y Condiciones.'); return;
     }
+    if (form.factura) {
+      if (!facturaForm.razon_social || !facturaForm.rut || !facturaForm.giro || !facturaForm.telefono || !facturaForm.region || !facturaForm.comuna || !facturaForm.calle || !facturaForm.numero) {
+        setError('Completa todos los datos de facturación.'); return;
+      }
+    }
     setLoading(true);
     const res = await fetch('/api/auth', {
       method: 'POST',
@@ -58,7 +95,8 @@ export default function RegistroPage() {
         email: form.email,
         telefono: form.telefono,
         password: form.password,
-        factura: form.factura
+        factura: form.factura,
+        datos_factura: form.factura ? facturaForm : undefined,
       })
     });
     setLoading(false);
@@ -107,6 +145,52 @@ export default function RegistroPage() {
             <input type="checkbox" name="factura" checked={form.factura} onChange={handleChange} />
             <span className="text-sm">Necesito comprar con factura</span>
           </div>
+          {form.factura && (
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-4">
+              <h3 className="text-xl font-bold mb-2">Datos para emisión de facturas</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold">Razón social</label>
+                  <input name="razon_social" value={facturaForm.razon_social} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" maxLength={100} required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">RUT</label>
+                  <input name="rut" value={facturaForm.rut} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Giro del negocio</label>
+                  <input name="giro" value={facturaForm.giro} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" maxLength={40} required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Teléfono</label>
+                  <input name="telefono" value={facturaForm.telefono} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Región</label>
+                  <select name="region" value={facturaForm.region} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura}>
+                    <option value="">Selecciona una región</option>
+                    {REGIONES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Comuna</label>
+                  <input name="comuna" value={facturaForm.comuna} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Calle</label>
+                  <input name="calle" value={facturaForm.calle} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">Número</label>
+                  <input name="numero" value={facturaForm.numero} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" required={form.factura} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold">N° depto / oficina / otro dato (si aplica)</label>
+                  <input name="depto_oficina" value={facturaForm.depto_oficina} onChange={handleFacturaChange} className="w-full border rounded px-3 py-2" />
+                </div>
+              </div>
+            </div>
+          )}
           <h3 className="text-xl font-bold mt-6 mb-2">Contraseña</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

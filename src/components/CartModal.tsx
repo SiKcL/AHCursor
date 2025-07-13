@@ -2,10 +2,12 @@ import React from 'react';
 import { useCart } from './CartContext';
 import { FaTimes, FaTrash } from 'react-icons/fa';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function CartModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   const total = cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
+  const router = useRouter();
 
   if (!open) return null;
 
@@ -41,7 +43,10 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
               <span className="font-bold text-blue-900">Total:</span>
               <span className="font-bold text-lg text-blue-800">${total}</span>
             </div>
-            <button className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition mb-2">Finalizar compra</button>
+            <button className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition mb-2"
+              onClick={() => { onClose(); router.push('/checkout'); }}>
+              Proceder a la compra
+            </button>
             <button className="w-full bg-gray-200 text-blue-700 py-2 rounded font-semibold hover:bg-gray-300 transition" onClick={clearCart}>Vaciar carrito</button>
           </>
         )}

@@ -110,6 +110,18 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla pedidos creada/verificada');
 
+    // Crear tabla de pedido_productos
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pedido_productos (
+        id SERIAL PRIMARY KEY,
+        pedido_id INTEGER REFERENCES pedidos(id) ON DELETE CASCADE,
+        producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
+        cantidad INTEGER NOT NULL,
+        precio DECIMAL(10,2) NOT NULL
+      );
+    `);
+    console.log('✅ Tabla pedido_productos creada/verificada');
+
     // Crear tabla de facturación
     await client.query(`
       CREATE TABLE IF NOT EXISTS facturacion (

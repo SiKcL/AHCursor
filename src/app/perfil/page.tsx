@@ -75,6 +75,14 @@ interface FormData {
   factura: boolean;
 }
 
+// Definir tipo para pedido
+interface Pedido {
+  id: number;
+  created_at: string;
+  total: number;
+  productos: { nombre: string; cantidad: number; precio: number }[];
+}
+
 // Función para formatear RUT chileno
 function formatearRut(rut: string): string {
   if (!rut) return '';
@@ -144,6 +152,10 @@ export default function PerfilPage() {
   const [errorDir, setErrorDir] = useState('');
   const [agregandoNuevaDir, setAgregandoNuevaDir] = useState(false);
 
+  // Estado para compras
+  const [compras, setCompras] = useState<Pedido[]>([]);
+  const [cargandoCompras, setCargandoCompras] = useState(false);
+
   // Cargar datos personales al entrar a la sección
   useEffect(() => {
     if (seccion === 'datos') {
@@ -197,6 +209,21 @@ export default function PerfilPage() {
   useEffect(() => {
     if (seccion === 'direcciones') {
       cargarDirecciones();
+    }
+  }, [seccion]);
+
+  // Cargar compras al entrar a la sección
+  useEffect(() => {
+    if (seccion === 'compras') {
+      setCargandoCompras(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      fetch('/api/pedidos', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then((data) => {
+          setCompras(Array.isArray(data) ? data : []);
+          setCargandoCompras(false);
+        });
     }
   }, [seccion]);
 
@@ -443,7 +470,28 @@ export default function PerfilPage() {
           {seccion === 'compras' && (
             <div>
               <h3 className="text-2xl font-bold mb-4">Compras</h3>
-              <p>Aquí aparecerán tus compras realizadas.</p>
+              {cargandoCompras ? (
+                <p>Cargando compras...</p>
+              ) : compras.length === 0 ? (
+                <p>Aquí aparecerán tus compras realizadas.</p>
+              ) : (
+                <div className="space-y-6">
+                  {compras.map(pedido => (
+                    <div key={pedido.id} className="bg-gray-50 rounded-lg p-4 border">
+                      <div className="mb-2 font-semibold">Pedido #{pedido.id} - {new Date(pedido.created_at).toLocaleString()}</div>
+                      <div className="mb-2">Total: <span className="font-bold">${pedido.total.toLocaleString()}</span></div>
+                      <div>
+                        <strong>Productos:</strong>
+                        <ul className="list-disc ml-6">
+                          {pedido.productos.map((prod, idx) => (
+                            <li key={idx}>{prod.nombre} x{prod.cantidad} - ${prod.precio.toLocaleString()}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {seccion === 'datos' && (

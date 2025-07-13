@@ -82,7 +82,6 @@ AgricolaHorizonte/
 ├── scripts/              # Scripts de automatización
 │   ├── init-db.js       # Inicialización de base de datos
 │   └── deploy.sh        # Script de despliegue
-└── prisma/              # Configuración de Prisma (eliminado)
 ```
 
 ## 🗄️ Base de Datos

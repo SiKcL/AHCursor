@@ -1,10 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+
+// Declarar window.FB para TypeScript
+declare global {
+    interface Window {
+        FB: any;
+    }
+}
 
 export default function SocialReels() {
     const [enlaces, setEnlaces] = useState<any[]>([]);
     const [facebookLoaded, setFacebookLoaded] = useState(false);
+    const fbContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
         fetch('/api/redes')
@@ -23,14 +31,18 @@ export default function SocialReels() {
             });
     }, [facebookLoaded]);
 
+    // Llama a FB.XFBML.parse() después de renderizar los embeds de Facebook
+    useEffect(() => {
+        if (facebookLoaded && typeof window !== 'undefined' && window.FB) {
+            window.FB.XFBML.parse();
+        }
+    }, [enlaces, facebookLoaded]);
+
     const loadFacebookSDK = () => {
-        // Verificar si ya existe el script de Facebook
         if (document.getElementById('facebook-jssdk')) {
             setFacebookLoaded(true);
             return;
         }
-
-        // Crear y cargar el script de Facebook
         const script = document.createElement('script');
         script.id = 'facebook-jssdk';
         script.async = true;
@@ -39,8 +51,6 @@ export default function SocialReels() {
         script.src = 'https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v19.0';
         script.onload = () => setFacebookLoaded(true);
         document.head.appendChild(script);
-
-        // Crear el div fb-root si no existe
         if (!document.getElementById('fb-root')) {
             const fbRoot = document.createElement('div');
             fbRoot.id = 'fb-root';
@@ -57,38 +67,37 @@ export default function SocialReels() {
             // Para Facebook embeds
             if (url.includes('class="fb-post"')) {
                 return (
-                    <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md">
-                        <div 
-                            dangerouslySetInnerHTML={{ __html: url }}
-                            className="w-full"
-                        />
+                    <div
+                        key={enlace.id || index}
+                        ref={el => { fbContainerRefs.current[index] = el; }}
+                        className="w-full rounded-lg shadow-md bg-white p-0 mb-2"
+                        style={{ minHeight: 200 }}
+                    >
+                        <div dangerouslySetInnerHTML={{ __html: url }} />
                     </div>
                 );
             }
-            
             // Para Instagram embeds
             if (url.includes('class="instagram-media"')) {
                 return (
-                    <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md">
+                    <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>
                         <div 
                             dangerouslySetInnerHTML={{ __html: url }}
-                            className="w-full"
+                            className="absolute top-0 left-0 w-full h-full"
                         />
                     </div>
                 );
             }
-
             // Para otros embeds (YouTube, etc.)
             return (
-                <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md">
+                <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>
                     <div 
                         dangerouslySetInnerHTML={{ __html: url }}
-                        className="w-full"
+                        className="absolute top-0 left-0 w-full h-full"
                     />
                 </div>
             );
         }
-
         // Si es una URL de iframe (formato anterior)
         return (
             <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>

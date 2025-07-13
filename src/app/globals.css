@@ -7,12 +7,12 @@
 
 
 :root {
-  --background: #e5c500;
+  --background: #68a027;
   --foreground: #070e5c;
   --primary: #070e5c;
   --secondary: #68aa02;
   --accent: #ff7300;
-  --highlight: #e5c500;
+  --highlight: #68a027;
 }
 
 @font-face {

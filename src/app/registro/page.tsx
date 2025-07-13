@@ -97,6 +97,16 @@ export default function RegistroPage() {
         password: form.password,
         factura: form.factura,
         datos_factura: form.factura ? facturaForm : undefined,
+        direccion: {
+          region: form.region,
+          comuna: form.comuna,
+          calle: form.calle,
+          numero: form.numero,
+          depto_oficina: form.depto_oficina,
+          nombre_recibe: form.nombre_recibe,
+          apellido_recibe: form.apellido_recibe,
+          telefono_recibe: form.telefono_recibe
+        }
       })
     });
     setLoading(false);

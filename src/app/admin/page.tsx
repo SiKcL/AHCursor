@@ -360,6 +360,7 @@ export default function AdminPage() {
   // Estado para usuarios
   const [usuarios, setUsuarios] = useState<UsuarioResumen[]>([]);
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false);
+  const [mensajeUsuario, setMensajeUsuario] = useState("");
 
   useEffect(() => {
     if (autenticado) cargarProductos();
@@ -380,6 +381,32 @@ export default function AdminPage() {
     const data = await res.json();
     setUsuarios(Array.isArray(data) ? data : []);
     setCargandoUsuarios(false);
+  }
+
+  async function handleEliminarUsuario(id: number) {
+    if (!confirm("¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.")) return;
+    setCargandoUsuarios(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/user`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ user_id: id }),
+      });
+      if (res.ok) {
+        setMensajeUsuario("¡Usuario eliminado con éxito!");
+        cargarUsuarios();
+      } else {
+        setMensajeUsuario("Error al eliminar usuario.");
+      }
+    } catch {
+      setMensajeUsuario("Error al eliminar usuario.");
+    }
+    setCargandoUsuarios(false);
+    setTimeout(() => setMensajeUsuario(""), 2000);
   }
 
   const handleLogin = (e: React.FormEvent) => {
@@ -469,6 +496,25 @@ export default function AdminPage() {
     setCargando(false);
     setMensaje("¡Producto eliminado con éxito!");
     setTimeout(() => setMensaje(""), 2000);
+  }
+
+  // Función para formatear RUT chileno
+  function formatearRut(rut: string): string {
+    if (!rut) return '';
+    // Eliminar puntos y guiones
+    rut = rut.replace(/[^0-9kK]/g, '');
+    if (rut.length < 2) return rut;
+    const cuerpo = rut.slice(0, -1);
+    let dv = rut.slice(-1);
+    dv = dv.toUpperCase();
+    let cuerpoFormateado = '';
+    let i = 0;
+    for (let j = cuerpo.length - 1; j >= 0; j--) {
+      cuerpoFormateado = cuerpo[j] + cuerpoFormateado;
+      i++;
+      if (i % 3 === 0 && j !== 0) cuerpoFormateado = '.' + cuerpoFormateado;
+    }
+    return `${cuerpoFormateado}-${dv}`;
   }
 
   if (!autenticado) {
@@ -586,6 +632,11 @@ export default function AdminPage() {
       {/* Tabla de usuarios registrados */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">Usuarios registrados</h2>
+        {mensajeUsuario && (
+          <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-center font-semibold animate-fade-in">
+            {mensajeUsuario}
+          </div>
+        )}
         {cargandoUsuarios ? (
           <p>Cargando usuarios...</p>
         ) : usuarios.length === 0 ? (
@@ -600,19 +651,28 @@ export default function AdminPage() {
                   <th className="p-2 border">Correo</th>
                   <th className="p-2 border">Factura</th>
                   <th className="p-2 border">Dirección</th>
+                  <th className="p-2 border">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {usuarios.map((u: UsuarioResumen) => (
                   <tr key={u.id}>
                     <td className="p-2 border">{u.nombre} {u.apellido}</td>
-                    <td className="p-2 border">{u.rut}</td>
+                    <td className="p-2 border">{formatearRut(u.rut)}</td>
                     <td className="p-2 border">{u.email}</td>
                     <td className="p-2 border text-center">{u.factura ? 'Sí' : 'No'}</td>
                     <td className="p-2 border text-center">
                       {u.direccion ? (
                         <span>{u.direccion.region}, {u.direccion.comuna}, {u.direccion.calle} #{u.direccion.numero}</span>
                       ) : 'No'}
+                    </td>
+                    <td className="p-2 border text-center">
+                      <button
+                        onClick={() => handleEliminarUsuario(u.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-xs"
+                      >
+                        Eliminar
+                      </button>
                     </td>
                   </tr>
                 ))}

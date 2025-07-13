@@ -40,6 +40,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             [user.id, f.razon_social, f.rut, f.giro, f.telefono, f.region, f.comuna, f.calle, f.numero, f.depto_oficina || null]
           );
         }
+        // Guardar dirección si se envía
+        if (data.direccion) {
+          const d = data.direccion;
+          await client.query(
+            `INSERT INTO direcciones (usuario_id, region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)` ,
+            [user.id, d.region, d.comuna, d.calle, d.numero, d.depto_oficina || null, d.nombre_recibe || null, d.apellido_recibe || null, d.telefono_recibe || null]
+          );
+        }
         client.release();
         // Generar token
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });

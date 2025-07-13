@@ -75,6 +75,24 @@ interface FormData {
   factura: boolean;
 }
 
+// Función para formatear RUT chileno
+function formatearRut(rut: string): string {
+  if (!rut) return '';
+  rut = rut.replace(/[^0-9kK]/g, '');
+  if (rut.length < 2) return rut;
+  const cuerpo = rut.slice(0, -1);
+  let dv = rut.slice(-1);
+  dv = dv.toUpperCase();
+  let cuerpoFormateado = '';
+  let i = 0;
+  for (let j = cuerpo.length - 1; j >= 0; j--) {
+    cuerpoFormateado = cuerpo[j] + cuerpoFormateado;
+    i++;
+    if (i % 3 === 0 && j !== 0) cuerpoFormateado = '.' + cuerpoFormateado;
+  }
+  return `${cuerpoFormateado}-${dv}`;
+}
+
 export default function PerfilPage() {
   const [seccion, setSeccion] = useState<SeccionKey>('compras');
   // Datos personales
@@ -445,7 +463,7 @@ export default function PerfilPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold">RUT</label>
-                    <input name="rut" value={form.rut || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" />
+                    <input name="rut" value={formatearRut(form.rut || '')} onChange={e => setForm(f => ({ ...f, rut: e.target.value.replace(/[^0-9kK]/g, '') }))} className="w-full border rounded px-3 py-2" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold">Fecha de nacimiento</label>
@@ -469,7 +487,7 @@ export default function PerfilPage() {
               ) : (
                 <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 max-w-lg">
                   <div className="mb-2"><span className="font-bold">Nombre:</span> {perfil.nombre} {perfil.apellido}</div>
-                  <div className="mb-2"><span className="font-bold">RUT:</span> {perfil.rut}</div>
+                  <div className="mb-2"><span className="font-bold">RUT:</span> {formatearRut(perfil.rut || '')}</div>
                   <div className="mb-2"><span className="font-bold">Fecha de nacimiento:</span> {perfil.fecha_nacimiento ? perfil.fecha_nacimiento.substring(0,10) : '-'}</div>
                   <div className="mb-2"><span className="font-bold">Email:</span> {perfil.email}</div>
                   <div className="mb-2"><span className="font-bold">Teléfono:</span> {perfil.telefono}</div>
@@ -493,26 +511,32 @@ export default function PerfilPage() {
                   <button className="bg-purple-700 text-white px-4 py-2 rounded font-bold hover:bg-purple-800 transition mb-4" onClick={handleAgregarDireccion} disabled={!!editandoDir}>
                     Agregar dirección
                   </button>
-                  {editandoDir && (
-                    <form onSubmit={handleGuardarDireccion} className="bg-gray-50 rounded-lg p-6 border border-gray-200 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <select name="region" value={formDir.region} onChange={handleFormDirChange} className="border rounded px-3 py-2" required>
-                        <option value="">Selecciona una región</option>
-                        {REGIONES.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                      <input name="comuna" value={formDir.comuna} onChange={handleFormDirChange} placeholder="Comuna" className="border rounded px-3 py-2" required />
-                      <input name="calle" value={formDir.calle} onChange={handleFormDirChange} placeholder="Calle" className="border rounded px-3 py-2" required />
-                      <input name="numero" value={formDir.numero} onChange={handleFormDirChange} placeholder="Número" className="border rounded px-3 py-2" required />
-                      <input name="depto_oficina" value={formDir.depto_oficina} onChange={handleFormDirChange} placeholder="N° depto / oficina / otro dato (si aplica)" className="border rounded px-3 py-2 md:col-span-2" />
-                      <input name="nombre_recibe" value={formDir.nombre_recibe} onChange={handleFormDirChange} placeholder="Nombre de quien recibe" className="border rounded px-3 py-2" required />
-                      <input name="apellido_recibe" value={formDir.apellido_recibe} onChange={handleFormDirChange} placeholder="Apellido de quien recibe" className="border rounded px-3 py-2" required />
-                      <input name="telefono_recibe" value={formDir.telefono_recibe} onChange={handleFormDirChange} placeholder="Teléfono" className="border rounded px-3 py-2" required />
-                      {errorDir && <div className="text-red-600 text-sm md:col-span-2">{errorDir}</div>}
-                      {msgDir && <div className="text-green-600 text-sm md:col-span-2">{msgDir}</div>}
-                      <div className="flex gap-4 mt-2 md:col-span-2">
-                        <button type="submit" className="bg-purple-700 text-white px-4 py-2 rounded font-bold hover:bg-purple-800 transition">Guardar</button>
-                        <button type="button" className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition" onClick={handleCancelarDir}>Cancelar</button>
+                  {/* MODAL PARA AGREGAR/EDITAR DIRECCIÓN */}
+                  {(agregandoNuevaDir || editandoDir) && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg relative animate-fade-in">
+                        <h4 className="text-xl font-bold mb-4">{editandoDir ? 'Editar dirección' : 'Agregar dirección'}</h4>
+                        <form onSubmit={handleGuardarDireccion} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <select name="region" value={formDir.region} onChange={handleFormDirChange} className="border rounded px-3 py-2" required>
+                            <option value="">Selecciona una región</option>
+                            {REGIONES.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <input name="comuna" value={formDir.comuna} onChange={handleFormDirChange} placeholder="Comuna" className="border rounded px-3 py-2" required />
+                          <input name="calle" value={formDir.calle} onChange={handleFormDirChange} placeholder="Calle" className="border rounded px-3 py-2" required />
+                          <input name="numero" value={formDir.numero} onChange={handleFormDirChange} placeholder="Número" className="border rounded px-3 py-2" required />
+                          <input name="depto_oficina" value={formDir.depto_oficina} onChange={handleFormDirChange} placeholder="N° depto / oficina / otro dato (si aplica)" className="border rounded px-3 py-2 md:col-span-2" />
+                          <input name="nombre_recibe" value={formDir.nombre_recibe} onChange={handleFormDirChange} placeholder="Nombre de quien recibe" className="border rounded px-3 py-2" required />
+                          <input name="apellido_recibe" value={formDir.apellido_recibe} onChange={handleFormDirChange} placeholder="Apellido de quien recibe" className="border rounded px-3 py-2" required />
+                          <input name="telefono_recibe" value={formDir.telefono_recibe} onChange={handleFormDirChange} placeholder="Teléfono" className="border rounded px-3 py-2" required />
+                          {errorDir && <div className="text-red-600 text-sm md:col-span-2">{errorDir}</div>}
+                          {msgDir && <div className="text-green-600 text-sm md:col-span-2">{msgDir}</div>}
+                          <div className="flex gap-4 mt-2 md:col-span-2">
+                            <button type="submit" className="bg-purple-700 text-white px-4 py-2 rounded font-bold hover:bg-purple-800 transition">Guardar</button>
+                            <button type="button" className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition" onClick={handleCancelarDir}>Cancelar</button>
+                          </div>
+                        </form>
                       </div>
-                    </form>
+                    </div>
                   )}
                   <div className="space-y-4">
                     {direcciones.map(dir => (
@@ -538,7 +562,7 @@ export default function PerfilPage() {
               {editandoFact ? (
                 <form onSubmit={handleSaveFact} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input name="razon_social" value={factForm.razon_social} onChange={e => setFactForm((f) => ({...f, razon_social: e.target.value}))} placeholder="Razón social" className="border rounded px-3 py-2" required />
-                  <input name="rut" value={factForm.rut} onChange={e => setFactForm((f) => ({...f, rut: e.target.value}))} placeholder="RUT" className="border rounded px-3 py-2" required />
+                  <input name="rut" value={formatearRut(factForm.rut || '')} onChange={e => setFactForm(f => ({...f, rut: e.target.value.replace(/[^0-9kK]/g, '')}))} placeholder="RUT" className="border rounded px-3 py-2" required />
                   <input name="giro" value={factForm.giro} onChange={e => setFactForm((f) => ({...f, giro: e.target.value}))} placeholder="Giro del negocio" className="border rounded px-3 py-2" required />
                   <input name="telefono" value={factForm.telefono} onChange={e => setFactForm((f) => ({...f, telefono: e.target.value}))} placeholder="Teléfono" className="border rounded px-3 py-2" required />
                   <select name="region" value={factForm.region} onChange={e => setFactForm((f) => ({...f, region: e.target.value}))} className="border rounded px-3 py-2" required>
@@ -559,7 +583,7 @@ export default function PerfilPage() {
               ) : facturacion ? (
                 <div>
                   <div className="mb-2"><span className="font-bold">Razón social:</span> {facturacion.razon_social}</div>
-                  <div className="mb-2"><span className="font-bold">RUT:</span> {facturacion.rut}</div>
+                  <div className="mb-2"><span className="font-bold">RUT:</span> {formatearRut(facturacion.rut)}</div>
                   <div className="mb-2"><span className="font-bold">Giro:</span> {facturacion.giro}</div>
                   <div className="mb-2"><span className="font-bold">Teléfono:</span> {facturacion.telefono}</div>
                   <div className="mb-2"><span className="font-bold">Región:</span> {facturacion.region}</div>

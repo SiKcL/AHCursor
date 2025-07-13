@@ -139,6 +139,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Error guardando dirección' });
     }
   } else if (req.method === 'DELETE') {
+    // Permitir que solo el admin elimine usuarios completos
+    const adminId = getUserIdFromRequest(req);
+    let adminEmail = null;
+    if (adminId) {
+      try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT email FROM usuarios WHERE id = $1', [adminId]);
+        client.release();
+        if (result.rows.length > 0) {
+          adminEmail = result.rows[0].email;
+        }
+      } catch {}
+    }
+    // Si se envía user_id, es intento de eliminar usuario completo (solo admin)
+    if (req.body.user_id && adminEmail === 'admin@admin.com') {
+      const userIdToDelete = req.body.user_id;
+      try {
+        const client = await pool.connect();
+        // Eliminar datos relacionados
+        await client.query('DELETE FROM favoritos WHERE usuario_id = $1', [userIdToDelete]);
+        await client.query('DELETE FROM pedidos WHERE usuario_id = $1', [userIdToDelete]);
+        await client.query('DELETE FROM direcciones WHERE usuario_id = $1', [userIdToDelete]);
+        await client.query('DELETE FROM facturacion WHERE usuario_id = $1', [userIdToDelete]);
+        // Eliminar usuario
+        await client.query('DELETE FROM usuarios WHERE id = $1', [userIdToDelete]);
+        client.release();
+        return res.status(200).json({ success: true });
+      } catch {
+        return res.status(500).json({ error: 'Error eliminando usuario' });
+      }
+    }
     // Eliminar dirección por id
     if (req.body.favorito_id) {
       // Quitar producto de favoritos

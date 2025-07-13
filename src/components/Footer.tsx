@@ -77,9 +77,18 @@ export default function Footer() {
         </div>
       </div>
 
-      <p className="mt-8 text-center text-sm opacity-75 px-6">
-        &copy; {new Date().getFullYear()} Agrícola Horizonte. Todos los derechos reservados.
-      </p>
+      <div className="mt-8 text-center text-xs text-gray-200">
+        © 2025 Agrícola Horizonte. Todos los derechos reservados.
+        <div className="mt-2">
+          <a
+            href="/admin"
+            className="text-blue-200 hover:text-white underline transition text-sm"
+            style={{ display: 'inline-block', marginTop: 8 }}
+          >
+            ¿Eres colaborador? Ingresa aquí
+          </a>
+        </div>
+      </div>
     </footer>
   );
 }

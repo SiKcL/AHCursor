@@ -21,32 +21,32 @@ Sitio web para Agricola Horizonte, una empresa especializada en productos hidrop
 ## 🛠️ Instalación Local
 
 ### 1. Clonar el repositorio
-```bash
+    ```bash
 git clone https://github.com/tu-usuario/AgricolaHorizonte.git
 cd AgricolaHorizonte
-```
+    ```
 
 ### 2. Instalar dependencias
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
 ### 3. Configurar base de datos local
-```bash
+    ```bash
 # Crear archivo .env
 cp .env.example .env
 # Editar .env con tus credenciales de PostgreSQL
-```
+    ```
 
 ### 4. Inicializar base de datos
-```bash
+    ```bash
 npm run init-db
-```
+    ```
 
 ### 5. Ejecutar en desarrollo
-```bash
-npm run dev
-```
+    ```bash
+    npm run dev
+    ```
 
 ## 🚀 Despliegue en Servidor
 

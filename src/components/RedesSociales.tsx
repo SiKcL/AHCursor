@@ -66,7 +66,7 @@ export default function SocialReels() {
         if (url.includes('<') && url.includes('>')) {
             // Para Facebook embeds
             if (url.includes('class="fb-post"')) {
-                return (
+    return (
                     <div
                         key={enlace.id || index}
                         ref={el => { fbContainerRefs.current[index] = el; }}
@@ -74,7 +74,7 @@ export default function SocialReels() {
                         style={{ minHeight: 200 }}
                     >
                         <div dangerouslySetInnerHTML={{ __html: url }} />
-                    </div>
+                </div>
                 );
             }
             // Para Instagram embeds
@@ -85,7 +85,7 @@ export default function SocialReels() {
                             dangerouslySetInnerHTML={{ __html: url }}
                             className="absolute top-0 left-0 w-full h-full"
                         />
-                    </div>
+                </div>
                 );
             }
             // Para otros embeds (YouTube, etc.)
@@ -93,22 +93,22 @@ export default function SocialReels() {
                 <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>
                     <div 
                         dangerouslySetInnerHTML={{ __html: url }}
-                        className="absolute top-0 left-0 w-full h-full"
-                    />
+                            className="absolute top-0 left-0 w-full h-full"
+                        />
                 </div>
             );
         }
         // Si es una URL de iframe (formato anterior)
         return (
             <div key={enlace.id || index} className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingTop: '177.77%' }}>
-                <iframe
+                        <iframe
                     src={url}
                     title={title}
-                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                    allowFullScreen
-                    className="absolute top-0 left-0 w-full h-full"
-                />
-            </div>
+                            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                            allowFullScreen
+                            className="absolute top-0 left-0 w-full h-full"
+                        />
+                </div>
         );
     };
 
@@ -123,6 +123,6 @@ export default function SocialReels() {
             </div>
         </section>
     );
-}
+  }
   
   

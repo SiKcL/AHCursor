@@ -61,6 +61,55 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla redes creada/verificada');
 
+    // Crear tabla de usuarios
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        apellido VARCHAR(100),
+        rut VARCHAR(20),
+        fecha_nacimiento DATE,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        telefono VARCHAR(30),
+        password_hash VARCHAR(255) NOT NULL,
+        factura BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tabla usuarios creada/verificada');
+
+    // Crear tabla de direcciones
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS direcciones (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        region VARCHAR(100),
+        comuna VARCHAR(100),
+        calle VARCHAR(255),
+        numero VARCHAR(20),
+        depto_oficina VARCHAR(100),
+        nombre_recibe VARCHAR(100),
+        apellido_recibe VARCHAR(100),
+        telefono_recibe VARCHAR(30),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tabla direcciones creada/verificada');
+
+    // Crear tabla de pedidos
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pedidos (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+        direccion_id INTEGER REFERENCES direcciones(id) ON DELETE SET NULL,
+        estado VARCHAR(50) DEFAULT 'pendiente',
+        total DECIMAL(10,2),
+        detalles JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tabla pedidos creada/verificada');
+
     // Insertar algunos datos de ejemplo
     const productosEjemplo = [
       {

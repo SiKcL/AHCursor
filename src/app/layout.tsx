@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartContext";
 import { avigea } from "@/lib/fonts";
 import Script from "next/script";
+import WhatsappFloat from "@/components/WhatsappFloat";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main className="flex-grow w-full">{children}</main>
         <Footer />
+        <WhatsappFloat />
         </CartProvider>
       </body>
     </html>

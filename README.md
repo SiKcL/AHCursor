@@ -2,14 +2,20 @@
 
 Sitio web para Agricola Horizonte, una empresa especializada en productos hidropónicos y agrícolas.
 
-## 🚀 Características
+## 🚀 Características Principales
 
-- **Frontend Moderno**: Desarrollado con Next.js 15 y React 19
+- **Frontend Moderno**: Next.js 15 y React 19
 - **Base de Datos**: PostgreSQL con conexión directa usando `pg`
-- **Panel de Administración**: Gestión completa de productos y galería
+- **Panel de Administración**: Gestión de productos, galería y pedidos
+- **Gestión de Pedidos**: Visualización y cambio de estado de pedidos por el admin
+- **Estados de Pedido**: En Proceso, Despachado, Completado
+- **Exportación a PDF**: Descarga de reportes de pedidos desde el panel admin
+- **Gestión de Usuarios**: Registro, login, perfil y direcciones
+- **Flujos Inteligentes**: Redirección según contexto y tipo de usuario
 - **Subida de Imágenes**: Sistema para subir y gestionar imágenes locales
 - **Diseño Responsivo**: Interfaz moderna con Tailwind CSS
 - **Despliegue Automatizado**: Scripts para despliegue en servidor VPS
+- **Optimización para Producción**: Corrección de errores de build, ESLint y TypeScript
 
 ## 📋 Requisitos
 
@@ -21,39 +27,38 @@ Sitio web para Agricola Horizonte, una empresa especializada en productos hidrop
 ## 🛠️ Instalación Local
 
 ### 1. Clonar el repositorio
-    ```bash
-git clone https://github.com/tu-usuario/AgricolaHorizonte.git
+```bash
+git clone https://github.com/SiKcL/AHCursor.git
 cd AgricolaHorizonte
-    ```
+```
 
 ### 2. Instalar dependencias
-    ```bash
-    npm install
-    ```
+```bash
+npm install
+```
 
 ### 3. Configurar base de datos local
-    ```bash
-# Crear archivo .env
+```bash
 cp .env.example .env
 # Editar .env con tus credenciales de PostgreSQL
-    ```
+```
 
 ### 4. Inicializar base de datos
-    ```bash
+```bash
 npm run init-db
-    ```
+```
 
 ### 5. Ejecutar en desarrollo
-    ```bash
-    npm run dev
-    ```
+```bash
+npm run dev
+```
 
 ## 🚀 Despliegue en Servidor
 
 ### Configuración Rápida
 ```bash
 # En el servidor SSH
-git clone https://github.com/tu-usuario/AgricolaHorizonte.git
+git clone https://github.com/SiKcL/AHCursor.git
 cd AgricolaHorizonte
 npm install
 npm run init-db
@@ -107,6 +112,27 @@ AgricolaHorizonte/
 - `categoria`: Categoría de la imagen
 - `created_at`: Fecha de creación
 
+#### `usuarios`
+- `id`: Identificador único
+- `email`: Correo electrónico
+- `password`: Contraseña hasheada
+- `nombre`: Nombre del usuario
+- `direccion`: Dirección principal (opcional)
+- `rol`: 'admin' o 'usuario'
+
+#### `pedidos`
+- `id`: Identificador único
+- `usuario_id`: Usuario que realizó el pedido
+- `direccion_id`: Dirección de entrega usada
+- `estado`: Estado del pedido (En Proceso, Despachado, Completado)
+- `productos`: Lista de productos y cantidades
+- `created_at`: Fecha de creación
+
+#### `direcciones`
+- `id`: Identificador único
+- `usuario_id`: Usuario dueño de la dirección
+- `direccion`: Texto de la dirección
+
 ## 🔧 Scripts Disponibles
 
 - `npm run dev`: Ejecutar en modo desarrollo
@@ -127,6 +153,11 @@ AgricolaHorizonte/
 - `GET /api/galeria`: Obtener todas las imágenes
 - `POST /api/galeria`: Subir nueva imagen
 - `DELETE /api/galeria/[id]`: Eliminar imagen
+
+### Pedidos
+- `GET /api/pedidos`: Obtener pedidos (admin ve todos, usuario ve los suyos)
+- `POST /api/pedidos`: Crear nuevo pedido
+- `PUT /api/pedidos/[id]`: Cambiar estado del pedido (solo admin)
 
 ### Subida de Archivos
 - `POST /api/upload`: Subir imagen al servidor
@@ -151,6 +182,16 @@ NODE_ENV=production
 UPLOAD_DIR=public/uploads
 ```
 
+## 📦 Flujos y Experiencia de Usuario
+
+- **Carrito y Checkout**: El usuario debe iniciar sesión o registrarse antes de comprar. Puede agregar una dirección en el checkout, que se guarda como principal y se asocia al pedido.
+- **Registro e Inicio de Sesión**: El registro solo guarda dirección si el usuario la ingresa. Tras login/registro, el usuario es redirigido al checkout (si venía del carrito) o a su perfil.
+- **Perfil de Usuario**: Visualización de todos los pedidos, estado y dirección de entrega.
+- **Panel de Administración**: Solo el admin (admin@admin.com) puede ver y gestionar todos los pedidos, cambiar su estado y descargar reportes en PDF (por estado).
+- **Exportación a PDF**: El admin puede descargar tablas de pedidos activos o completados para respaldo.
+- **Redirecciones Inteligentes**: El admin es redirigido automáticamente al panel de administración tras login.
+- **Optimización y Producción**: El proyecto está 100% listo para producción, con todos los flujos probados y optimizados.
+
 ## 📸 Gestión de Imágenes
 
 El sistema soporta dos tipos de imágenes:
@@ -158,14 +199,6 @@ El sistema soporta dos tipos de imágenes:
 2. **URLs externas**: Enlaces directos a imágenes en la web
 
 Las imágenes se eliminan automáticamente del servidor cuando se borra o edita un producto.
-
-## 🚀 Próximas Características
-
-- [ ] Integración con Webpay para pagos
-- [ ] Sistema de usuarios y autenticación
-- [ ] Panel de administración mejorado
-- [ ] Optimización de imágenes automática
-- [ ] Sistema de notificaciones
 
 ## 📞 Soporte
 

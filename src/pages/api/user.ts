@@ -68,9 +68,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Obtener pedidos
       try {
         const client = await pool.connect();
-        const result = await client.query('SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY created_at DESC', [userId]);
+        let pedidos;
+        // Permitir que el admin consulte pedidos de cualquier usuario
+        const requestedUserId = req.query.user_id ? parseInt(req.query.user_id as string, 10) : null;
+        let isAdmin = false;
+        if (userId) {
+          const adminRes = await client.query('SELECT email FROM usuarios WHERE id = $1', [userId]);
+          isAdmin = adminRes.rows.length > 0 && adminRes.rows[0].email === 'admin@admin.com';
+        }
+        if (isAdmin && requestedUserId) {
+          pedidos = await client.query('SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY created_at DESC', [requestedUserId]);
+        } else {
+          pedidos = await client.query('SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY created_at DESC', [userId]);
+        }
+        const pedidosArr = pedidos.rows;
+        // Para cada pedido, obtener productos
+        for (const pedido of pedidosArr) {
+          const prodRes = await client.query(
+            `SELECT pp.cantidad, pp.precio, p.nombre FROM pedido_productos pp JOIN productos p ON pp.producto_id = p.id WHERE pp.pedido_id = $1`,
+            [pedido.id]
+          );
+          pedido.productos = prodRes.rows;
+        }
         client.release();
-        return res.status(200).json(result.rows);
+        return res.status(200).json(pedidosArr);
       } catch {
         return res.status(500).json({ error: 'Error obteniendo pedidos' });
       }
@@ -90,15 +111,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Error obteniendo favoritos' });
       }
     } else if (section === 'all') {
-      // Obtener todos los usuarios con resumen de dirección principal
+      // Obtener todos los usuarios con resumen de dirección principal y cantidad de pedidos
       try {
         const client = await pool.connect();
         const result = await client.query('SELECT id, nombre, apellido, rut, email, factura FROM usuarios ORDER BY created_at DESC');
         const users = result.rows;
-        // Para cada usuario, buscar su dirección principal (la más reciente)
+        // Para cada usuario, buscar su dirección principal (la más reciente) y contar pedidos
         for (const u of users) {
           const dirRes = await client.query('SELECT region, comuna, calle, numero FROM direcciones WHERE usuario_id = $1 ORDER BY created_at DESC LIMIT 1', [u.id]);
           u.direccion = dirRes.rows[0] || null;
+          const pedidosRes = await client.query('SELECT COUNT(*) FROM pedidos WHERE usuario_id = $1', [u.id]);
+          u.pedidos_realizados = parseInt(pedidosRes.rows[0].count, 10);
         }
         client.release();
         return res.status(200).json(users);

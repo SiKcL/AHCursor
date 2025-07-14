@@ -14,10 +14,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const data = await request.json();
-  const { nombre, descripcion, precio, imagen } = data;
+  const { nombre, descripcion, precio, imagen, stock = 0 } = data;
   const result = await pool.query(
-    'INSERT INTO productos (nombre, descripcion, precio, imagen) VALUES ($1, $2, $3, $4) RETURNING *',
-    [nombre, descripcion, precio, imagen]
+    'INSERT INTO productos (nombre, descripcion, precio, imagen, stock) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [nombre, descripcion, precio, imagen, stock]
   );
   return NextResponse.json(result.rows[0]);
 }

@@ -14,7 +14,8 @@ interface Producto {
   descripcion: string | null;
   precio: number;
   imagen?: string | null;
-  imageUrl?: string | null;
+  imageUrl?: string;
+  stock: number;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -75,18 +76,30 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                 <div>
                 <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
                 <p className="text-lg font-bold text-green-600 mt-1">{formatPrice(producto.precio)}</p>
+                <p className="text-sm text-gray-500 mt-1">Stock: {producto.stock}</p>
                 </div>
-                <button
-                  className="mt-3 w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
-                  onClick={() => addToCart({
-                    id: producto.id,
-                    nombre: producto.nombre,
-                    precio: producto.precio,
-                    imageUrl: producto.imageUrl || '',
-                  })}
-                >
-                  Añadir al carrito
-                </button>
+                {producto.stock > 0 ? (
+                  <button
+                    className="mt-3 w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
+                    onClick={() => addToCart({
+                      id: producto.id,
+                      nombre: producto.nombre,
+                      precio: producto.precio,
+                      precioBase: producto.precio,
+                      imageUrl: producto.imageUrl || '',
+                      stock: producto.stock,
+                    })}
+                  >
+                    Añadir al carrito
+                  </button>
+                ) : (
+                  <button
+                    className="mt-3 w-full bg-red-600 text-white py-2 rounded font-semibold cursor-not-allowed opacity-80"
+                    disabled
+                  >
+                    Producto sin Stock
+                  </button>
+                )}
               </div>
             </div>
           </div>

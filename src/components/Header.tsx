@@ -65,7 +65,7 @@ export default function Header() {
             </span>
           )}
         </div>
-        <a href="#" className="hover:text-[color:var(--accent)]"><FaWhatsapp size={20} /></a>
+        <a href="https://wa.me/56973821569" target="_blank" rel="noopener noreferrer" className="hover:text-[color:var(--accent)]"><FaWhatsapp size={20} /></a>
         <a href="https://www.facebook.com/AgricolaHorizonte.m/" className="hover:text-[color:var(--accent)]"><FaFacebookF size={20} /></a>
         <a href="https://www.instagram.com/agricolahorizonte.m/" className="hover:text-[color:var(--accent)]"><FaInstagram size={20} /></a>
         {/* Icono de usuario */}

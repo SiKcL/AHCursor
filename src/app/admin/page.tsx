@@ -8,12 +8,14 @@ import autoTable from 'jspdf-autotable';
 const USER = "admin";
 const PASS = "admin123";
 
+// 1. Actualizar la interfaz Producto para incluir stock
 interface Producto {
   id: number;
   nombre: string;
   descripcion: string | null;
   precio: number;
   imagen: string | null;
+  stock: number;
 }
 
 interface ImagenGaleria {
@@ -27,6 +29,7 @@ interface EnlaceRed {
   titulo?: string;
 }
 
+// 1. Extender la interfaz UsuarioResumen para incluir pedidos_realizados
 interface UsuarioResumen {
   id: number;
   nombre: string;
@@ -40,6 +43,8 @@ interface UsuarioResumen {
     calle: string;
     numero: string;
   } | null;
+  telefono?: string;
+  pedidos_realizados?: number;
 }
 
 // 1. Definir la interfaz para los pedidos y productos del pedido
@@ -53,6 +58,7 @@ interface PedidoAdmin {
   created_at: string;
   estado: string;
   productos: { nombre: string; cantidad: number; precio: number }[];
+  telefono_recibe?: string;
 }
 
 function AdminGaleria() {
@@ -361,11 +367,12 @@ function descargarPDF(pedidos: PedidoAdmin[], titulo: string) {
   autoTable(doc, {
     startY: 22,
     head: [[
-      'ID', 'Cliente', 'Dirección', 'Productos', 'Total', 'Fecha', 'Estado'
+      'ID', 'Cliente', 'Teléfono', 'Dirección', 'Productos', 'Total', 'Fecha', 'Estado'
     ]],
     body: pedidos.map(p => [
       p.id,
       `${p.usuario_nombre} ${p.usuario_apellido}`,
+      p.telefono_recibe || '-',
       p.direccion,
       p.productos.map(prod => `${prod.nombre} x${prod.cantidad} ($${prod.precio})`).join('\n'),
       `$${p.total}`,
@@ -376,8 +383,8 @@ function descargarPDF(pedidos: PedidoAdmin[], titulo: string) {
     headStyles: { fillColor: [44, 62, 80] },
     bodyStyles: { valign: 'top' },
     columnStyles: {
-      3: { cellWidth: 50 }, // productos
-      2: { cellWidth: 40 }, // dirección
+      4: { cellWidth: 50 }, // productos
+      3: { cellWidth: 40 }, // dirección
     },
   });
   doc.save(`${titulo.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -390,6 +397,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [productos, setProductos] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(false);
+  // 2. Agregar stock al estado del formulario
   const [form, setForm] = useState({
     id: 0,
     nombre: "",
@@ -397,6 +405,7 @@ export default function AdminPage() {
     precio: 0,
     imagen: "",
     file: null as File | null,
+    stock: 0,
   });
   const [editando, setEditando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -409,6 +418,9 @@ export default function AdminPage() {
   // Estado para pedidos
   const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
   const [cargandoPedidos, setCargandoPedidos] = useState(false);
+
+  // 2. Estado para el modal de pedidos de usuario
+  const [modalPedidos, setModalPedidos] = useState<{visible: boolean, usuario?: UsuarioResumen, pedidos: PedidoAdmin[]}>({visible: false, usuario: undefined, pedidos: []});
 
   useEffect(() => {
     if (autenticado) cargarPedidos();
@@ -446,6 +458,14 @@ export default function AdminPage() {
     const data = await res.json();
     setPedidos(Array.isArray(data) ? data : []);
     setCargandoPedidos(false);
+  }
+
+  async function cargarPedidosUsuario(userId: number) {
+    const res = await fetch(`/api/user?section=orders&user_id=${userId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }
+    });
+    const data = await res.json();
+    setModalPedidos(m => ({...m, pedidos: Array.isArray(data) ? data : []}));
   }
 
   async function handleEliminarUsuario(id: number) {
@@ -516,6 +536,7 @@ export default function AdminPage() {
       descripcion: form.descripcion,
       precio: form.precio,
       imagen,
+      stock: form.stock,
     };
     if (editando) {
       await fetch("/api/productos", {
@@ -532,7 +553,7 @@ export default function AdminPage() {
       });
       setMensaje("¡Producto añadido con éxito!");
     }
-    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null });
+    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0 });
     setEditando(false);
     cargarProductos();
     setCargando(false);
@@ -544,7 +565,8 @@ export default function AdminPage() {
       ...producto,
       descripcion: producto.descripcion ?? "",
       imagen: producto.imagen ?? "",
-      file: null
+      file: null,
+      stock: producto.stock ?? 0,
     });
     setEditando(true);
   }
@@ -581,6 +603,13 @@ export default function AdminPage() {
     }
     return `${cuerpoFormateado}-${dv}`;
   }
+
+  // useEffect para cargar los pedidos del usuario cuando se abre el modal
+  useEffect(() => {
+    if (modalPedidos.visible && modalPedidos.usuario) {
+      cargarPedidosUsuario(modalPedidos.usuario.id);
+    }
+  }, [modalPedidos.visible, modalPedidos.usuario]);
 
   if (!autenticado) {
     return (
@@ -669,9 +698,13 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+          <div className="mb-3">
+            <label className="block mb-1">Stock</label>
+            <input name="stock" type="number" value={form.stock} onChange={handleFormChange} className="w-full border px-3 py-2 rounded" min={0} required />
+          </div>
           <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition" disabled={cargando}>{editando ? "Actualizar" : "Crear"}</button>
           {editando && (
-            <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null }); }}>Cancelar</button>
+            <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0 }); }}>Cancelar</button>
           )}
         </form>
         <h3 className="text-lg font-semibold mb-4">Productos</h3>
@@ -685,6 +718,9 @@ export default function AdminPage() {
                 <h4 className="font-bold text-lg">{producto.nombre}</h4>
                 <p className="text-gray-600">{producto.descripcion}</p>
                 <p className="text-green-700 font-semibold mt-2">${producto.precio}</p>
+                <p className="text-gray-700 text-sm mt-1">
+                  Stock: {producto.stock === 0 ? <span className="text-red-600 font-bold">0 ❌</span> : <span className="font-bold">{producto.stock}</span>}
+                </p>
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => handleEditar(producto)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Editar</button>
                   <button onClick={() => handleEliminar(producto.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Eliminar</button>
@@ -718,8 +754,10 @@ export default function AdminPage() {
                   <th className="p-2 border">Nombre</th>
                   <th className="p-2 border">RUT</th>
                   <th className="p-2 border">Correo</th>
+                  <th className="p-2 border">Teléfono</th>
                   <th className="p-2 border">Factura</th>
                   <th className="p-2 border">Dirección</th>
+                  <th className="p-2 border">Pedidos Realizados</th>
                   <th className="p-2 border">Acciones</th>
                 </tr>
               </thead>
@@ -729,11 +767,20 @@ export default function AdminPage() {
                     <td className="p-2 border">{u.nombre} {u.apellido}</td>
                     <td className="p-2 border">{formatearRut(u.rut)}</td>
                     <td className="p-2 border">{u.email}</td>
+                    <td className="p-2 border">{u.telefono || '-'}</td>
                     <td className="p-2 border text-center">{u.factura ? 'Sí' : 'No'}</td>
                     <td className="p-2 border text-center">
                       {u.direccion ? (
                         <span>{u.direccion.region}, {u.direccion.comuna}, {u.direccion.calle} #{u.direccion.numero}</span>
                       ) : 'No'}
+                    </td>
+                    <td className="p-2 border text-center">
+                      <button
+                        className="text-blue-700 underline hover:text-blue-900 font-bold"
+                        onClick={() => setModalPedidos({visible: true, usuario: u, pedidos: []})}
+                      >
+                        {u.pedidos_realizados ?? 0}
+                      </button>
                     </td>
                     <td className="p-2 border text-center">
                       <button
@@ -765,6 +812,7 @@ export default function AdminPage() {
                 <tr className="bg-gray-100">
                   <th className="px-2 py-1 border">ID</th>
                   <th className="px-2 py-1 border">Cliente</th>
+                  <th className="px-2 py-1 border">Teléfono</th>
                   <th className="px-2 py-1 border">Dirección</th>
                   <th className="px-2 py-1 border">Productos</th>
                   <th className="px-2 py-1 border">Total</th>
@@ -777,6 +825,7 @@ export default function AdminPage() {
                   <tr key={pedido.id}>
                     <td className="border px-2 py-1">{pedido.id}</td>
                     <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
                     <td className="border px-2 py-1">{pedido.direccion}</td>
                     <td className="border px-2 py-1">
                       <ul className="text-xs">
@@ -832,6 +881,7 @@ export default function AdminPage() {
                 <tr className="bg-gray-100">
                   <th className="px-2 py-1 border">ID</th>
                   <th className="px-2 py-1 border">Cliente</th>
+                  <th className="px-2 py-1 border">Teléfono</th>
                   <th className="px-2 py-1 border">Dirección</th>
                   <th className="px-2 py-1 border">Productos</th>
                   <th className="px-2 py-1 border">Total</th>
@@ -844,6 +894,7 @@ export default function AdminPage() {
                   <tr key={pedido.id}>
                     <td className="border px-2 py-1">{pedido.id}</td>
                     <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
                     <td className="border px-2 py-1">{pedido.direccion}</td>
                     <td className="border px-2 py-1">
                       <ul className="text-xs">
@@ -862,6 +913,55 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+      {/* Modal para mostrar pedidos del usuario seleccionado */}
+      {modalPedidos.visible && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={() => setModalPedidos({visible: false, usuario: undefined, pedidos: []})}>✕</button>
+            <h3 className="text-xl font-bold mb-4">Pedidos de {modalPedidos.usuario?.nombre} {modalPedidos.usuario?.apellido}</h3>
+            {modalPedidos.pedidos.length === 0 ? (
+              <p className="text-gray-600">Este usuario no ha realizado pedidos.</p>
+            ) : (
+              <table className="min-w-full border text-xs mb-4">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-1 border">ID</th>
+                    <th className="p-1 border">Fecha</th>
+                    <th className="p-1 border">Total</th>
+                    <th className="p-1 border">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modalPedidos.pedidos.map((p, idx) => (
+                    <React.Fragment key={p.id || idx}>
+                      <tr>
+                        <td className="p-1 border align-top">{p.id}</td>
+                        <td className="p-1 border align-top">{new Date(p.created_at).toLocaleString()}</td>
+                        <td className="p-1 border align-top">${p.total}</td>
+                        <td className="p-1 border align-top">{p.estado}</td>
+                      </tr>
+                      {Array.isArray(p.productos) && p.productos.length > 0 ? (
+                        <tr>
+                          <td colSpan={4} className="p-1 border bg-gray-50">
+                            <div className="text-xs font-semibold mb-1">Productos:</div>
+                            <ul className="pl-4 list-disc">
+                              {p.productos.map((prod: { nombre: string; cantidad: number; precio: number }, i: number) => (
+                                <li key={i} className="mb-1">
+                                  {prod.nombre} x{prod.cantidad} <span className="text-gray-500">(${prod.precio} c/u)</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

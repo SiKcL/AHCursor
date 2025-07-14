@@ -5,16 +5,18 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 export interface CartItem {
   id: number;
   nombre: string;
-  precio: number;
+  precio: number; // precio unitario actual (con descuento)
+  precioBase: number; // precio original del producto
   imageUrl: string | null;
   cantidad: number;
+  stock: number;
 }
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (item: Omit<CartItem, 'cantidad'>) => void;
+  addToCart: (item: Omit<CartItem, 'cantidad'> & { cantidad?: number }) => void;
   removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, cantidad: number) => void;
+  updateQuantity: (id: number, cantidad: number, precio?: number) => void;
   clearCart: () => void;
 }
 
@@ -38,13 +40,17 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
-  function addToCart(item: Omit<CartItem, 'cantidad'>) {
+  function addToCart(item: Omit<CartItem, 'cantidad'> & { cantidad?: number }) {
     setCart(prev => {
       const found = prev.find(p => p.id === item.id);
       if (found) {
-        return prev.map(p => p.id === item.id ? { ...p, cantidad: p.cantidad + 1 } : p);
+        return prev.map(p =>
+          p.id === item.id
+            ? { ...p, cantidad: item.cantidad ? item.cantidad : p.cantidad + 1, precio: item.precio, precioBase: item.precioBase, stock: item.stock }
+            : p
+        );
       }
-      return [...prev, { ...item, cantidad: 1 }];
+      return [...prev, { ...item, cantidad: item.cantidad || 1 }];
     });
   }
 
@@ -52,8 +58,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart(prev => prev.filter(p => p.id !== id));
   }
 
-  function updateQuantity(id: number, cantidad: number) {
-    setCart(prev => prev.map(p => p.id === id ? { ...p, cantidad } : p));
+  function updateQuantity(id: number, cantidad: number, precio?: number) {
+    setCart(prev => prev.map(p => p.id === id ? { ...p, cantidad, ...(precio !== undefined ? { precio } : {}) } : p));
   }
 
   function clearCart() {

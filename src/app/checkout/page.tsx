@@ -40,6 +40,27 @@ interface CartItem {
   precio: number;
   cantidad: number;
   imageUrl?: string | null;
+  precioBase: number; // Added precioBase to the interface
+  stock: number; // Added stock to the interface
+}
+
+// Lógica de descuentos por volumen y porcentajes (igual que en ProductoModal y CartModal)
+const DESCUENTOS = [
+  { min: 200, porcentaje: 49.5 },
+  { min: 160, porcentaje: 44.4 },
+  { min: 100, porcentaje: 34.3 },
+  { min: 50, porcentaje: 24.2 },
+  { min: 25, porcentaje: 14.1 },
+];
+function getDescuentoPorcentaje(cantidad: number) {
+  for (const tramo of DESCUENTOS) {
+    if (cantidad >= tramo.min) return tramo.porcentaje;
+  }
+  return 0;
+}
+function getPrecioUnitario(precioBase: number, cantidad: number) {
+  const descuento = getDescuentoPorcentaje(cantidad);
+  return Math.round(precioBase * (1 - descuento / 100));
 }
 
 export default function CheckoutPage() {
@@ -63,7 +84,6 @@ export default function CheckoutPage() {
   });
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   // Agregar estados para guardar el resumen del pedido
   const [pedidoResumen, setPedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
 
@@ -148,7 +168,6 @@ export default function CheckoutPage() {
 
   // Enviar pedido
   const handlePagar = async () => {
-    setLoading(true);
     setError('');
     setMsg('');
     const token = localStorage.getItem('token');
@@ -156,7 +175,6 @@ export default function CheckoutPage() {
     const direccionId = form.direccion_id;
     if (!direccionId) {
       setError('No se pudo obtener la dirección.');
-      setLoading(false);
       return;
     }
     // Guardar resumen antes de limpiar el carrito
@@ -176,10 +194,13 @@ export default function CheckoutPage() {
     } else {
       setError('Error al procesar el pedido');
     }
-    setLoading(false);
   };
 
-  const total = cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
+  // Usar el precio unitario con descuento para el total
+  const total = cart.reduce((sum, item) => {
+    const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad);
+    return sum + precioUnitario * item.cantidad;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -266,7 +287,7 @@ export default function CheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
                         <div className="text-sm text-gray-500">Cantidad: {item.cantidad}</div>
-                        <div className="text-sm text-gray-500">Precio: ${item.precio.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">Precio: ${getPrecioUnitario(item.precioBase, item.cantidad).toLocaleString()}</div>
                       </div>
                     </li>
                   ))}
@@ -279,7 +300,7 @@ export default function CheckoutPage() {
               {msg && <div className="text-green-600 text-sm mb-2">{msg}</div>}
               {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
               <div className="flex gap-4 mt-2">
-                <button className="bg-[color:var(--primary)] text-white px-6 py-2 rounded font-bold hover:bg-[color:var(--secondary)] transition" onClick={handlePagar} disabled={loading || (pedidoResumen ? pedidoResumen.productos.length === 0 : cart.length === 0)}>Pagar</button>
+                <button type="button" onClick={handlePagar} className="bg-blue-900 text-white px-6 py-2 rounded font-bold hover:bg-blue-800 mr-2">Realizar Pedido</button>
                 <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition" onClick={() => setStep(1)}>Volver</button>
               </div>
             </div>
@@ -299,12 +320,39 @@ export default function CheckoutPage() {
                       {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={56} height={56} className="w-14 h-14 object-cover rounded" />}
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
-                        <div className="text-sm text-gray-500">${item.precio.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">${getPrecioUnitario(item.precioBase, item.cantidad).toLocaleString()}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1))}>-</button>
-                          <span className="px-2">{item.cantidad}</span>
-                          <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, item.cantidad + 1)}>+</button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={item.stock}
+                            value={item.cantidad}
+                            onChange={e => {
+                              let val = parseInt(e.target.value, 10);
+                              if (isNaN(val) || val < 1) val = 1;
+                              if (val > item.stock) val = item.stock;
+                              updateQuantity(item.id, val);
+                            }}
+                            onBlur={e => {
+                              let val = parseInt(e.target.value, 10);
+                              if (isNaN(val) || val < 1) val = 1;
+                              if (val > item.stock) val = item.stock;
+                              if (val !== item.cantidad) {
+                                updateQuantity(item.id, val);
+                              }
+                            }}
+                            onFocus={e => e.target.select()}
+                            className="w-20 h-10 text-center border rounded px-2 py-0 text-lg font-bold mx-2"
+                            style={{ appearance: 'textfield' }}
+                          />
+                          <button
+                            className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold"
+                            onClick={() => updateQuantity(item.id, Math.min(item.stock, item.cantidad + 1))}
+                            disabled={item.cantidad >= item.stock}
+                          >+</button>
                           <button className="ml-2 text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.id)}><FaTrash /></button>
+                          <span className="ml-3 text-xs text-gray-500">Stock: {item.stock}</span>
                         </div>
                       </div>
                     </li>

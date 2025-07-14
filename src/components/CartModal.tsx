@@ -3,11 +3,13 @@ import { useCart } from './CartContext';
 import { FaTimes, FaTrash } from 'react-icons/fa';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useAuth } from './AuthContext';
 
 export default function CartModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   const total = cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
   const router = useRouter();
+  const { isAuth } = useAuth();
 
   if (!open) return null;
 
@@ -43,10 +45,24 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
               <span className="font-bold text-blue-900">Total:</span>
               <span className="font-bold text-lg text-blue-800">${total}</span>
             </div>
-            <button className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition mb-2"
-              onClick={() => { onClose(); router.push('/checkout'); }}>
-              Proceder a la compra
-            </button>
+            {isAuth ? (
+              <button className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition mb-2"
+                onClick={() => { onClose(); router.push('/checkout'); }}>
+                Proceder a la compra
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 mb-2">
+                <div className="text-center text-red-600 font-semibold mb-2">Debes registrarte o iniciar sesión para proceder con la compra.</div>
+                <button className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
+                  onClick={() => { onClose(); router.push('/login?redirect=/checkout'); }}>
+                  Iniciar Sesión
+                </button>
+                <button className="w-full bg-green-700 text-white py-2 rounded font-semibold hover:bg-green-800 transition"
+                  onClick={() => { onClose(); router.push('/registro?redirect=/checkout'); }}>
+                  Registrarse
+                </button>
+              </div>
+            )}
             <button className="w-full bg-gray-200 text-blue-700 py-2 rounded font-semibold hover:bg-gray-300 transition" onClick={clearCart}>Vaciar carrito</button>
           </>
         )}

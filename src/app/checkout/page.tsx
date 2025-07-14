@@ -5,7 +5,25 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaTrash } from 'react-icons/fa';
 
+interface FormularioCheckout {
+  nombre: string;
+  apellido: string;
+  rut: string;
+  email: string;
+  telefono: string;
+  region: string;
+  comuna: string;
+  calle: string;
+  numero: string;
+  depto_oficina: string;
+  nombre_recibe: string;
+  apellido_recibe: string;
+  telefono_recibe: string;
+  direccion_id?: number;
+}
+
 interface Direccion {
+  id: number;
   region: string;
   comuna: string;
   calle: string;
@@ -16,12 +34,19 @@ interface Direccion {
   telefono_recibe?: string;
 }
 
+interface CartItem {
+  id: number;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  imageUrl?: string | null;
+}
+
 export default function CheckoutPage() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [perfil, setPerfil] = useState<any>(null);
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState<FormularioCheckout>({
     nombre: '',
     apellido: '',
     rut: '',
@@ -39,6 +64,8 @@ export default function CheckoutPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Agregar estados para guardar el resumen del pedido
+  const [pedidoResumen, setPedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
 
   // Cargar datos personales y dirección principal
   useEffect(() => {
@@ -47,8 +74,7 @@ export default function CheckoutPage() {
     fetch('/api/user?section=profile', { headers: { Authorization: 'Bearer ' + token } })
       .then(res => res.json())
       .then(data => {
-        setPerfil(data);
-        setForm((f: any) => ({
+        setForm((f: FormularioCheckout) => ({
           ...f,
           nombre: data?.nombre || '',
           apellido: data?.apellido || '',
@@ -59,10 +85,10 @@ export default function CheckoutPage() {
       });
     fetch('/api/user?section=direcciones', { headers: { Authorization: 'Bearer ' + token } })
       .then(res => res.json())
-      .then((dirs) => {
+      .then((dirs: Direccion[]) => {
         if (Array.isArray(dirs) && dirs.length > 0) {
           const d = dirs[0];
-          setForm((f: any) => ({
+          setForm((f: FormularioCheckout) => ({
             ...f,
             region: d.region || '',
             comuna: d.comuna || '',
@@ -80,46 +106,43 @@ export default function CheckoutPage() {
   // Manejo de formulario
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((f: any) => ({ ...f, [name]: value }));
+    setForm((f: FormularioCheckout) => ({ ...f, [name]: value }));
   };
 
-  // Guardar dirección si no existe y avanzar a confirmación
+  // Guardar dirección y avanzar a confirmación
   const handleContinuar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMsg('');
     // Validar campos básicos
     for (const key of ['nombre','apellido','rut','email','telefono','region','comuna','calle','numero','nombre_recibe','apellido_recibe','telefono_recibe']) {
-      if (!form[key]) {
+      if (!form[key as keyof FormularioCheckout]) {
         setError('Por favor completa todos los campos obligatorios.');
         return;
       }
     }
-    // Guardar dirección si no existe
+    // Siempre guardar la dirección ingresada
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/user?section=direcciones', { headers: { Authorization: 'Bearer ' + token } });
-    const dirs = await res.json();
-    if (!Array.isArray(dirs) || dirs.length === 0) {
-      // Crear dirección
-      const res2 = await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({
-          region: form.region,
-          comuna: form.comuna,
-          calle: form.calle,
-          numero: form.numero,
-          depto_oficina: form.depto_oficina,
-          nombre_recibe: form.nombre_recibe,
-          apellido_recibe: form.apellido_recibe,
-          telefono_recibe: form.telefono_recibe
-        })
-      });
-      if (!res2.ok) {
-        setError('Error guardando dirección');
-        return;
-      }
+    const res2 = await fetch('/api/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({
+        region: form.region,
+        comuna: form.comuna,
+        calle: form.calle,
+        numero: form.numero,
+        depto_oficina: form.depto_oficina,
+        nombre_recibe: form.nombre_recibe,
+        apellido_recibe: form.apellido_recibe,
+        telefono_recibe: form.telefono_recibe
+      })
+    });
+    if (!res2.ok) {
+      setError('Error guardando dirección');
+      return;
     }
+    const dataDir = await res2.json();
+    setForm((f: FormularioCheckout) => ({ ...f, direccion_id: dataDir.id }));
     setStep(2);
   };
 
@@ -129,10 +152,15 @@ export default function CheckoutPage() {
     setError('');
     setMsg('');
     const token = localStorage.getItem('token');
-    // Obtener dirección principal
-    const resDir = await fetch('/api/user?section=direcciones', { headers: { Authorization: 'Bearer ' + token } });
-    const dirs = await resDir.json();
-    const direccionId = Array.isArray(dirs) && dirs.length > 0 ? dirs[0].id : null;
+    // Usar el id de la dirección recién guardada
+    const direccionId = form.direccion_id;
+    if (!direccionId) {
+      setError('No se pudo obtener la dirección.');
+      setLoading(false);
+      return;
+    }
+    // Guardar resumen antes de limpiar el carrito
+    setPedidoResumen({ productos: [...cart], total: cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0) });
     const res = await fetch('/api/pedidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
@@ -232,7 +260,7 @@ export default function CheckoutPage() {
               <div className="mb-4">
                 <strong>Productos:</strong>
                 <ul className="divide-y divide-gray-200">
-                  {cart.map(item => (
+                  {(pedidoResumen ? pedidoResumen.productos : cart).map(item => (
                     <li key={item.id} className="flex items-center gap-3 py-3">
                       {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={56} height={56} className="w-14 h-14 object-cover rounded" />}
                       <div className="flex-1 min-w-0">
@@ -247,48 +275,50 @@ export default function CheckoutPage() {
               <div className="mb-4">
                 <strong>Dirección:</strong> {form.region}, {form.comuna}, {form.calle} #{form.numero}{form.depto_oficina && `, ${form.depto_oficina}`}
               </div>
-              <div className="mb-4 font-bold text-lg">Total: ${total.toLocaleString()}</div>
+              <div className="mb-4 font-bold text-lg">Total: ${pedidoResumen ? pedidoResumen.total.toLocaleString() : total.toLocaleString()}</div>
               {msg && <div className="text-green-600 text-sm mb-2">{msg}</div>}
               {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
               <div className="flex gap-4 mt-2">
-                <button className="bg-[color:var(--primary)] text-white px-6 py-2 rounded font-bold hover:bg-[color:var(--secondary)] transition" onClick={handlePagar} disabled={loading || cart.length === 0}>Pagar</button>
+                <button className="bg-[color:var(--primary)] text-white px-6 py-2 rounded font-bold hover:bg-[color:var(--secondary)] transition" onClick={handlePagar} disabled={loading || (pedidoResumen ? pedidoResumen.productos.length === 0 : cart.length === 0)}>Pagar</button>
                 <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition" onClick={() => setStep(1)}>Volver</button>
               </div>
             </div>
           )}
         </div>
         {/* Carrito editable a la derecha */}
-        <aside className="w-full md:w-96 flex-shrink-0">
-          <div className="bg-gray-50 rounded-lg shadow p-6">
-            <h4 className="text-lg font-bold mb-4 text-[color:var(--primary)]">Carrito ({cart.length} producto{cart.length !== 1 ? 's' : ''})</h4>
-            {cart.length === 0 ? (
-              <div className="text-gray-500">No hay productos en tu carrito.</div>
-            ) : (
-              <ul className="divide-y divide-gray-200 mb-4">
-                {cart.map(item => (
-                  <li key={item.id} className="flex items-center gap-3 py-3">
-                    {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={56} height={56} className="w-14 h-14 object-cover rounded" />}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
-                      <div className="text-sm text-gray-500">${item.precio.toLocaleString()}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1))}>-</button>
-                        <span className="px-2">{item.cantidad}</span>
-                        <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, item.cantidad + 1)}>+</button>
-                        <button className="ml-2 text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.id)}><FaTrash /></button>
+        {step === 1 && (
+          <aside className="w-full md:w-96 flex-shrink-0">
+            <div className="bg-gray-50 rounded-lg shadow p-6">
+              <h4 className="text-lg font-bold mb-4 text-[color:var(--primary)]">Carrito ({cart.length} producto{cart.length !== 1 ? 's' : ''})</h4>
+              {cart.length === 0 ? (
+                <div className="text-gray-500">No hay productos en tu carrito.</div>
+              ) : (
+                <ul className="divide-y divide-gray-200 mb-4">
+                  {cart.map(item => (
+                    <li key={item.id} className="flex items-center gap-3 py-3">
+                      {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={56} height={56} className="w-14 h-14 object-cover rounded" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
+                        <div className="text-sm text-gray-500">${item.precio.toLocaleString()}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1))}>-</button>
+                          <span className="px-2">{item.cantidad}</span>
+                          <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, item.cantidad + 1)}>+</button>
+                          <button className="ml-2 text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.id)}><FaTrash /></button>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-bold">Total:</span>
-              <span className="font-bold text-lg text-[color:var(--primary)]">${total.toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-bold">Total:</span>
+                <span className="font-bold text-lg text-[color:var(--primary)]">${total.toLocaleString()}</span>
+              </div>
+              <button className="w-full bg-gray-200 text-[color:var(--primary)] py-2 rounded font-semibold hover:bg-gray-300 transition mt-2" onClick={clearCart}>Vaciar carrito</button>
             </div>
-            <button className="w-full bg-gray-200 text-[color:var(--primary)] py-2 rounded font-semibold hover:bg-gray-300 transition mt-2" onClick={clearCart}>Vaciar carrito</button>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );

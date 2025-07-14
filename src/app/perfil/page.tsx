@@ -81,6 +81,15 @@ interface Pedido {
   created_at: string;
   total: number;
   productos: { nombre: string; cantidad: number; precio: number }[];
+  estado: string; // 'proceso', 'despachado', 'completado'
+  region?: string;
+  comuna?: string;
+  calle?: string;
+  numero?: string;
+  depto_oficina?: string;
+  nombre_recibe?: string;
+  apellido_recibe?: string;
+  telefono_recibe?: string;
 }
 
 // Función para formatear RUT chileno
@@ -480,6 +489,15 @@ export default function PerfilPage() {
                     <div key={pedido.id} className="bg-gray-50 rounded-lg p-4 border">
                       <div className="mb-2 font-semibold">Pedido #{pedido.id} - {new Date(pedido.created_at).toLocaleString()}</div>
                       <div className="mb-2">Total: <span className="font-bold">${pedido.total.toLocaleString()}</span></div>
+                      <div className="mb-2">
+                        <span className="font-bold">Estado:</span> {pedido.estado === 'proceso' ? 'En Proceso' : pedido.estado === 'despachado' ? 'Despachado' : pedido.estado === 'completado' ? 'Completado' : pedido.estado}
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-bold">Dirección de entrega:</span> {pedido.region || ''}{pedido.comuna ? ', ' + pedido.comuna : ''}{pedido.calle ? ', ' + pedido.calle : ''}{pedido.numero ? ' #' + pedido.numero : ''}{pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}
+                        {pedido.nombre_recibe || pedido.apellido_recibe || pedido.telefono_recibe ? (
+                          <span> (Recibe: {pedido.nombre_recibe || ''} {pedido.apellido_recibe || ''}{pedido.telefono_recibe ? ' - ' + pedido.telefono_recibe : ''})</span>
+                        ) : null}
+                      </div>
                       <div>
                         <strong>Productos:</strong>
                         <ul className="list-disc ml-6">
@@ -620,7 +638,7 @@ export default function PerfilPage() {
                   <input name="comuna" value={factForm.comuna} onChange={e => setFactForm((f) => ({...f, comuna: e.target.value}))} placeholder="Comuna" className="border rounded px-3 py-2" required />
                   <input name="calle" value={factForm.calle} onChange={e => setFactForm((f) => ({...f, calle: e.target.value}))} placeholder="Calle" className="border rounded px-3 py-2" required />
                   <input name="numero" value={factForm.numero} onChange={e => setFactForm((f) => ({...f, numero: e.target.value}))} placeholder="Número" className="border rounded px-3 py-2" required />
-                  <input name="depto_oficina" value={factForm.depto_oficina} onChange={e => setFactForm((f) => ({...f, depto_oficina: e.target.value}))} placeholder="N° depto / oficina / otro dato (si aplica)" className="border rounded px-3 py-2 md:col-span-2" />
+                  <input name="depto_oficina" value={factForm.depto_oficina || ""} onChange={e => setFactForm((f) => ({...f, depto_oficina: e.target.value}))} placeholder="N° depto / oficina / otro dato (si aplica)" className="border rounded px-3 py-2 md:col-span-2" />
                   {errorFact && <div className="text-red-600 text-sm md:col-span-2">{errorFact}</div>}
                   {msgFact && <div className="text-green-600 text-sm md:col-span-2">{msgFact}</div>}
                   <div className="flex gap-4 mt-2 md:col-span-2">

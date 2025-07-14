@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Image from 'next/image';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const USER = "admin";
 const PASS = "admin123";
@@ -38,6 +40,19 @@ interface UsuarioResumen {
     calle: string;
     numero: string;
   } | null;
+}
+
+// 1. Definir la interfaz para los pedidos y productos del pedido
+interface PedidoAdmin {
+  id: number;
+  usuario_id: number;
+  usuario_nombre: string;
+  usuario_apellido: string;
+  direccion: string;
+  total: number;
+  created_at: string;
+  estado: string;
+  productos: { nombre: string; cantidad: number; precio: number }[];
 }
 
 function AdminGaleria() {
@@ -339,6 +354,35 @@ function AdminRedes() {
   );
 }
 
+function descargarPDF(pedidos: PedidoAdmin[], titulo: string) {
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text(titulo, 14, 16);
+  autoTable(doc, {
+    startY: 22,
+    head: [[
+      'ID', 'Cliente', 'Dirección', 'Productos', 'Total', 'Fecha', 'Estado'
+    ]],
+    body: pedidos.map(p => [
+      p.id,
+      `${p.usuario_nombre} ${p.usuario_apellido}`,
+      p.direccion,
+      p.productos.map(prod => `${prod.nombre} x${prod.cantidad} ($${prod.precio})`).join('\n'),
+      `$${p.total}`,
+      new Date(p.created_at).toLocaleString(),
+      p.estado.charAt(0).toUpperCase() + p.estado.slice(1)
+    ]),
+    styles: { fontSize: 10, cellPadding: 2 },
+    headStyles: { fillColor: [44, 62, 80] },
+    bodyStyles: { valign: 'top' },
+    columnStyles: {
+      3: { cellWidth: 50 }, // productos
+      2: { cellWidth: 40 }, // dirección
+    },
+  });
+  doc.save(`${titulo.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
 export default function AdminPage() {
   const [autenticado, setAutenticado] = useState(false);
   const [usuario, setUsuario] = useState("");
@@ -362,7 +406,12 @@ export default function AdminPage() {
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false);
   const [mensajeUsuario, setMensajeUsuario] = useState("");
 
+  // Estado para pedidos
+  const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
+  const [cargandoPedidos, setCargandoPedidos] = useState(false);
+
   useEffect(() => {
+    if (autenticado) cargarPedidos();
     if (autenticado) cargarProductos();
     if (autenticado) cargarUsuarios();
   }, [autenticado]);
@@ -381,6 +430,22 @@ export default function AdminPage() {
     const data = await res.json();
     setUsuarios(Array.isArray(data) ? data : []);
     setCargandoUsuarios(false);
+  }
+
+  async function cargarPedidos() {
+    setCargandoPedidos(true);
+    const token = localStorage.getItem('token');
+    let res: Response;
+    if (token) {
+      res = await fetch('/api/pedidos?admin=1', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } else {
+      res = await fetch('/api/pedidos?admin=1');
+    }
+    const data = await res.json();
+    setPedidos(Array.isArray(data) ? data : []);
+    setCargandoPedidos(false);
   }
 
   async function handleEliminarUsuario(id: number) {
@@ -548,6 +613,10 @@ export default function AdminPage() {
     );
   }
 
+  // Filtrar pedidos
+  const pedidosCompletados = pedidos.filter(p => p.estado === 'completado');
+  const pedidosNoCompletados = pedidos.filter(p => p.estado !== 'completado');
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-8">
       {/* Contenedor de Productos */}
@@ -674,6 +743,118 @@ export default function AdminPage() {
                         Eliminar
                       </button>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* Sección de Pedidos NO completados */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-2xl font-bold mb-4 border-b pb-2">Pedidos de Clientes</h2>
+        <button className="mb-4 bg-blue-700 text-white px-4 py-2 rounded font-semibold hover:bg-blue-800 transition" onClick={() => descargarPDF(pedidosNoCompletados, 'Pedidos de Clientes')}>Descargar PDF</button>
+        {cargandoPedidos ? (
+          <div>Cargando pedidos...</div>
+        ) : pedidosNoCompletados.length === 0 ? (
+          <div>No hay pedidos registrados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-2 py-1 border">ID</th>
+                  <th className="px-2 py-1 border">Cliente</th>
+                  <th className="px-2 py-1 border">Dirección</th>
+                  <th className="px-2 py-1 border">Productos</th>
+                  <th className="px-2 py-1 border">Total</th>
+                  <th className="px-2 py-1 border">Fecha</th>
+                  <th className="px-2 py-1 border">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosNoCompletados.map(pedido => (
+                  <tr key={pedido.id}>
+                    <td className="border px-2 py-1">{pedido.id}</td>
+                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-2 py-1">{pedido.direccion}</td>
+                    <td className="border px-2 py-1">
+                      <ul className="text-xs">
+                        {pedido.productos.map((prod, idx) => (
+                          <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td className="border px-2 py-1">${pedido.total}</td>
+                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
+                    <td className="border px-2 py-1">
+                      <select
+                        value={pedido.estado}
+                        onChange={async (e) => {
+                          const nuevoEstado = e.target.value;
+                          const token = localStorage.getItem('token');
+                          await fetch(`/api/pedidos`, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                            },
+                            body: JSON.stringify({ pedido_id: pedido.id, estado: nuevoEstado })
+                          });
+                          cargarPedidos();
+                        }}
+                        className="border rounded px-2 py-1"
+                      >
+                        <option value="proceso">En Proceso</option>
+                        <option value="despachado">Despachado</option>
+                        <option value="completado">Completado</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* Sección de Pedidos Completados */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-2xl font-bold mb-4 border-b pb-2">Pedidos Completados</h2>
+        <button className="mb-4 bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition" onClick={() => descargarPDF(pedidosCompletados, 'Pedidos Completados')}>Descargar PDF</button>
+        {cargandoPedidos ? (
+          <div>Cargando pedidos...</div>
+        ) : pedidosCompletados.length === 0 ? (
+          <div>No hay pedidos completados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-2 py-1 border">ID</th>
+                  <th className="px-2 py-1 border">Cliente</th>
+                  <th className="px-2 py-1 border">Dirección</th>
+                  <th className="px-2 py-1 border">Productos</th>
+                  <th className="px-2 py-1 border">Total</th>
+                  <th className="px-2 py-1 border">Fecha</th>
+                  <th className="px-2 py-1 border">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosCompletados.map(pedido => (
+                  <tr key={pedido.id}>
+                    <td className="border px-2 py-1">{pedido.id}</td>
+                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-2 py-1">{pedido.direccion}</td>
+                    <td className="border px-2 py-1">
+                      <ul className="text-xs">
+                        {pedido.productos.map((prod, idx) => (
+                          <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td className="border px-2 py-1">${pedido.total}</td>
+                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
+                    <td className="border px-2 py-1">Completado</td>
                   </tr>
                 ))}
               </tbody>

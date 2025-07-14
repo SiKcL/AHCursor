@@ -128,13 +128,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const d = req.body;
     try {
       const client = await pool.connect();
-      await client.query(
+      const result = await client.query(
         `INSERT INTO direcciones (usuario_id, region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)` ,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id` ,
         [userId, d.region, d.comuna, d.calle, d.numero, d.depto_oficina || null, d.nombre_recibe, d.apellido_recibe, d.telefono_recibe]
       );
       client.release();
-      return res.status(201).json({ success: true });
+      return res.status(201).json({ success: true, id: result.rows[0].id });
     } catch {
       return res.status(500).json({ error: 'Error guardando dirección' });
     }

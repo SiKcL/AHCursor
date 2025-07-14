@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -82,6 +83,20 @@ export default function RegistroPage() {
         setError('Completa todos los datos de facturación.'); return;
       }
     }
+    // Preparar datos de dirección solo si hay datos válidos
+    let direccion = undefined;
+    if (form.region && form.comuna && form.calle && form.numero) {
+      direccion = {
+        region: form.region,
+        comuna: form.comuna,
+        calle: form.calle,
+        numero: form.numero,
+        depto_oficina: form.depto_oficina,
+        nombre_recibe: form.nombre_recibe,
+        apellido_recibe: form.apellido_recibe,
+        telefono_recibe: form.telefono_recibe
+      };
+    }
     setLoading(true);
     const res = await fetch('/api/auth', {
       method: 'POST',
@@ -97,23 +112,17 @@ export default function RegistroPage() {
         password: form.password,
         factura: form.factura,
         datos_factura: form.factura ? facturaForm : undefined,
-        direccion: {
-          region: form.region,
-          comuna: form.comuna,
-          calle: form.calle,
-          numero: form.numero,
-          depto_oficina: form.depto_oficina,
-          nombre_recibe: form.nombre_recibe,
-          apellido_recibe: form.apellido_recibe,
-          telefono_recibe: form.telefono_recibe
-        }
+        direccion // solo se envía si es válida
       })
     });
     setLoading(false);
     const data = await res.json();
     if (res.ok) {
       setSuccess('¡Registro exitoso! Redirigiendo...');
-      setTimeout(() => router.push('/login'), 1500);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      setTimeout(() => router.push('/perfil'), 1500);
     } else {
       setError(data.error || 'Error en el registro.');
     }

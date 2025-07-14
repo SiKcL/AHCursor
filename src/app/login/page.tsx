@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -30,8 +31,11 @@ export default function LoginPage() {
     setLoading(false);
     const data = await res.json();
     if (res.ok) {
-      // Guardar token en localStorage (o cookie segura en producción)
       localStorage.setItem('token', data.token);
+      if (form.email === 'admin@admin.com') {
+        router.push('/admin');
+        return;
+      }
       router.push('/perfil');
     } else {
       setError(data.error || 'Error en el login.');

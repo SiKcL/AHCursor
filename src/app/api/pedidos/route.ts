@@ -19,9 +19,9 @@ function getUserIdFromRequest(req: NextRequest): number | null {
 async function isAdminUser(userId: number): Promise<boolean> {
   try {
     const client = await pool.connect();
-    const res = await client.query('SELECT email FROM usuarios WHERE id = $1', [userId]);
+    const res = await client.query('SELECT rol FROM usuarios WHERE id = $1', [userId]);
     client.release();
-    return res.rows.length > 0 && res.rows[0].email === 'admin@admin.com';
+    return res.rows.length > 0 && res.rows[0].rol === 'admin';
   } catch {
     return false;
   }
@@ -90,11 +90,43 @@ export async function PUT(req: NextRequest) {
   if (!pedido_id || !estado) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   try {
     const client = await pool.connect();
+    // Si el nuevo estado es 'cancelado', devolver el stock de los productos
+    if (estado === 'cancelado') {
+      // Obtener productos del pedido
+      const productosRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
+      for (const row of productosRes.rows) {
+        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [row.cantidad, row.producto_id]);
+      }
+    }
     await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, pedido_id]);
     client.release();
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Error actualizando estado' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!(await isAdminUser(userId))) return NextResponse.json({ error: 'Solo admin puede borrar historial' }, { status: 403 });
+  const estado = req.nextUrl.searchParams.get('estado');
+  if (!estado || (estado !== 'completado' && estado !== 'cancelado')) {
+    return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
+  }
+  try {
+    const client = await pool.connect();
+    // Eliminar productos de los pedidos primero (por FK)
+    const pedidosRes = await client.query('SELECT id FROM pedidos WHERE estado = $1', [estado]);
+    const pedidosIds = pedidosRes.rows.map(r => r.id);
+    if (pedidosIds.length > 0) {
+      await client.query('DELETE FROM pedido_productos WHERE pedido_id = ANY($1)', [pedidosIds]);
+      await client.query('DELETE FROM pedidos WHERE id = ANY($1)', [pedidosIds]);
+    }
+    client.release();
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Error borrando historial' }, { status: 500 });
   }
 }
 

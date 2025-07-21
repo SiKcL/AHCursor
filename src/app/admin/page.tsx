@@ -4,9 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-const USER = "admin";
-const PASS = "admin123";
+import Modal from 'react-modal';
 
 // 1. Actualizar la interfaz Producto para incluir stock
 interface Producto {
@@ -45,6 +43,8 @@ interface UsuarioResumen {
   } | null;
   telefono?: string;
   pedidos_realizados?: number;
+  rol?: string; // Added rol to the interface
+  last_login?: string; // Added last_login to the interface
 }
 
 // 1. Definir la interfaz para los pedidos y productos del pedido
@@ -422,6 +422,22 @@ export default function AdminPage() {
   // 2. Estado para el modal de pedidos de usuario
   const [modalPedidos, setModalPedidos] = useState<{visible: boolean, usuario?: UsuarioResumen, pedidos: PedidoAdmin[]}>({visible: false, usuario: undefined, pedidos: []});
 
+  const [modalCrearAdmin, setModalCrearAdmin] = useState(false);
+  const [nuevoAdmin, setNuevoAdmin] = useState({ nombre: '', apellido: '', email: '', password: '' });
+  const [mensajeAdmin, setMensajeAdmin] = useState('');
+  interface Facturacion {
+    razon_social: string;
+    rut: string;
+    giro: string;
+    telefono: string;
+    region: string;
+    comuna: string;
+    calle: string;
+    numero: string;
+    depto_oficina: string;
+  }
+  const [modalFactura, setModalFactura] = useState<{open: boolean, data: Facturacion | null}>({open: false, data: null});
+
   useEffect(() => {
     if (autenticado) cargarPedidos();
     if (autenticado) cargarProductos();
@@ -494,13 +510,30 @@ export default function AdminPage() {
     setTimeout(() => setMensajeUsuario(""), 2000);
   }
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (usuario === USER && contrasena === PASS) {
+    setError("");
+    // Login contra la API
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", email: usuario, password: contrasena })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Usuario o contraseña incorrectos");
+        return;
+      }
+      if (data.user.rol !== "admin") {
+        setError("No tienes permisos de administrador");
+        return;
+      }
+      localStorage.setItem("token", data.token);
       setAutenticado(true);
       setError("");
-    } else {
-      setError("Usuario o contraseña incorrectos");
+    } catch {
+      setError("Error de conexión o login");
     }
   };
 
@@ -644,7 +677,8 @@ export default function AdminPage() {
 
   // Filtrar pedidos
   const pedidosCompletados = pedidos.filter(p => p.estado === 'completado');
-  const pedidosNoCompletados = pedidos.filter(p => p.estado !== 'completado');
+  const pedidosCancelados = pedidos.filter(p => p.estado === 'cancelado');
+  const pedidosNoCompletados = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado');
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-8">
@@ -744,7 +778,7 @@ export default function AdminPage() {
         )}
         {cargandoUsuarios ? (
           <p>Cargando usuarios...</p>
-        ) : usuarios.length === 0 ? (
+        ) : usuarios.filter(u => u.rol !== 'admin').length === 0 ? (
           <p>No hay usuarios registrados.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -762,13 +796,27 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((u: UsuarioResumen) => (
+                {usuarios.filter(u => u.rol !== 'admin').map((u: UsuarioResumen) => (
                   <tr key={u.id}>
                     <td className="p-2 border">{u.nombre} {u.apellido}</td>
                     <td className="p-2 border">{formatearRut(u.rut)}</td>
                     <td className="p-2 border">{u.email}</td>
                     <td className="p-2 border">{u.telefono || '-'}</td>
-                    <td className="p-2 border text-center">{u.factura ? 'Sí' : 'No'}</td>
+                    <td className="p-2 border text-center">
+                      {u.factura ? (
+                        <button
+                          className="text-green-700 underline font-bold cursor-pointer"
+                          onClick={async () => {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch(`/api/user?section=facturacion&user_id=${u.id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                            const data = await res.json();
+                            setModalFactura({open: true, data});
+                          }}
+                        >
+                          Sí
+                        </button>
+                      ) : 'No'}
+                    </td>
                     <td className="p-2 border text-center">
                       {u.direccion ? (
                         <span>{u.direccion.region}, {u.direccion.comuna}, {u.direccion.calle} #{u.direccion.numero}</span>
@@ -782,6 +830,119 @@ export default function AdminPage() {
                         {u.pedidos_realizados ?? 0}
                       </button>
                     </td>
+                    <td className="p-2 border text-center">
+                      <button
+                        onClick={() => handleEliminarUsuario(u.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-xs"
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* Tabla de administradores registrados */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold mb-4 border-b pb-2">Administradores Registrados</h2>
+        <button
+          className="mb-4 bg-blue-700 text-white px-4 py-2 rounded font-semibold hover:bg-blue-800 transition"
+          onClick={() => setModalCrearAdmin(true)}
+        >
+          Crear Administrador
+        </button>
+        <Modal
+          isOpen={modalCrearAdmin}
+          onRequestClose={() => setModalCrearAdmin(false)}
+          className="bg-white p-8 rounded shadow-md w-96 mx-auto mt-32 outline-none"
+          overlayClassName="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30"
+          ariaHideApp={false}
+        >
+          <h3 className="text-xl font-bold mb-4">Crear nuevo administrador</h3>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setMensajeAdmin('');
+              const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'register',
+                  nombre: nuevoAdmin.nombre,
+                  apellido: nuevoAdmin.apellido,
+                  email: nuevoAdmin.email,
+                  password: nuevoAdmin.password,
+                  rol: 'admin',
+                })
+              });
+              const data = await res.json();
+              if (res.ok) {
+                setMensajeAdmin('Administrador creado exitosamente.');
+                setNuevoAdmin({ nombre: '', apellido: '', email: '', password: '' });
+              } else {
+                setMensajeAdmin(data.error || 'Error al crear administrador.');
+              }
+            }}
+            className="flex flex-col gap-3"
+          >
+            <input
+              type="text"
+              placeholder="Nombre"
+              className="border px-3 py-2 rounded"
+              value={nuevoAdmin.nombre}
+              onChange={e => setNuevoAdmin(a => ({ ...a, nombre: e.target.value }))}
+              required
+            />
+            <input
+              type="text"
+              placeholder="Apellido"
+              className="border px-3 py-2 rounded"
+              value={nuevoAdmin.apellido}
+              onChange={e => setNuevoAdmin(a => ({ ...a, apellido: e.target.value }))}
+            />
+            <input
+              type="email"
+              placeholder="Correo electrónico"
+              className="border px-3 py-2 rounded"
+              value={nuevoAdmin.email}
+              onChange={e => setNuevoAdmin(a => ({ ...a, email: e.target.value }))}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              className="border px-3 py-2 rounded"
+              value={nuevoAdmin.password}
+              onChange={e => setNuevoAdmin(a => ({ ...a, password: e.target.value }))}
+              required
+            />
+            <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition">Crear</button>
+            {mensajeAdmin && <div className="text-center text-sm mt-2">{mensajeAdmin}</div>}
+          </form>
+          <button className="mt-4 text-blue-700 underline" onClick={() => setModalCrearAdmin(false)}>Cerrar</button>
+        </Modal>
+        {cargandoUsuarios ? (
+          <p>Cargando administradores...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-2 border">Nombre</th>
+                  <th className="p-2 border">Correo</th>
+                  <th className="p-2 border">Último acceso</th>
+                  <th className="p-2 border">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuarios.filter(u => u.rol === 'admin').map((u) => (
+                  <tr key={u.id}>
+                    <td className="p-2 border">{u.nombre} {u.apellido}</td>
+                    <td className="p-2 border">{u.email}</td>
+                    <td className="p-2 border text-center">{u.last_login ? new Date(u.last_login).toLocaleString() : '-'}</td>
                     <td className="p-2 border text-center">
                       <button
                         onClick={() => handleEliminarUsuario(u.id)}
@@ -857,6 +1018,7 @@ export default function AdminPage() {
                         <option value="proceso">En Proceso</option>
                         <option value="despachado">Despachado</option>
                         <option value="completado">Completado</option>
+                        <option value="cancelado">Cancelado</option>
                       </select>
                     </td>
                   </tr>
@@ -869,7 +1031,28 @@ export default function AdminPage() {
       {/* Sección de Pedidos Completados */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">Pedidos Completados</h2>
-        <button className="mb-4 bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition" onClick={() => descargarPDF(pedidosCompletados, 'Pedidos Completados')}>Descargar PDF</button>
+        <div className="flex gap-2 mb-4">
+          <button className="bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition" onClick={() => descargarPDF(pedidosCompletados, 'Pedidos Completados')}>Descargar PDF</button>
+          <button
+            className="bg-red-700 text-white px-4 py-2 rounded font-semibold hover:bg-red-800 transition"
+            onClick={async () => {
+              if (!window.confirm('¿Estás seguro de que deseas eliminar el historial? Se descargará una copia en PDF antes de borrar los datos.')) return;
+              descargarPDF(pedidosCompletados, 'Pedidos Completados');
+              // Llamar API para borrar pedidos completados
+              const token = localStorage.getItem('token');
+              await fetch('/api/pedidos?estado=completado', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+              cargarPedidos();
+            }}
+          >
+            Limpiar historial
+          </button>
+        </div>
         {cargandoPedidos ? (
           <div>Cargando pedidos...</div>
         ) : pedidosCompletados.length === 0 ? (
@@ -906,6 +1089,74 @@ export default function AdminPage() {
                     <td className="border px-2 py-1">${pedido.total}</td>
                     <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
                     <td className="border px-2 py-1">Completado</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* Sección de Pedidos Cancelados */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-2xl font-bold mb-4 border-b pb-2">Pedidos Cancelados</h2>
+        <div className="flex gap-2 mb-4">
+          <button className="bg-red-700 text-white px-4 py-2 rounded font-semibold hover:bg-red-800 transition" onClick={() => descargarPDF(pedidosCancelados, 'Pedidos Cancelados')}>Descargar PDF</button>
+          <button
+            className="bg-red-700 text-white px-4 py-2 rounded font-semibold hover:bg-red-800 transition"
+            onClick={async () => {
+              if (!window.confirm('¿Estás seguro de que deseas eliminar el historial? Se descargará una copia en PDF antes de borrar los datos.')) return;
+              descargarPDF(pedidosCancelados, 'Pedidos Cancelados');
+              // Llamar API para borrar pedidos cancelados
+              const token = localStorage.getItem('token');
+              await fetch('/api/pedidos?estado=cancelado', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+              cargarPedidos();
+            }}
+          >
+            Limpiar historial
+          </button>
+        </div>
+        {cargandoPedidos ? (
+          <div>Cargando pedidos...</div>
+        ) : pedidosCancelados.length === 0 ? (
+          <div>No hay pedidos cancelados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-2 py-1 border">ID</th>
+                  <th className="px-2 py-1 border">Cliente</th>
+                  <th className="px-2 py-1 border">Teléfono</th>
+                  <th className="px-2 py-1 border">Dirección</th>
+                  <th className="px-2 py-1 border">Productos</th>
+                  <th className="px-2 py-1 border">Total</th>
+                  <th className="px-2 py-1 border">Fecha</th>
+                  <th className="px-2 py-1 border">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosCancelados.map(pedido => (
+                  <tr key={pedido.id}>
+                    <td className="border px-2 py-1">{pedido.id}</td>
+                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
+                    <td className="border px-2 py-1">{pedido.direccion}</td>
+                    <td className="border px-2 py-1">
+                      <ul className="text-xs">
+                        {pedido.productos.map((prod, idx) => (
+                          <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td className="border px-2 py-1">${pedido.total}</td>
+                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
+                    <td className="border px-2 py-1">Cancelado</td>
                   </tr>
                 ))}
               </tbody>
@@ -962,6 +1213,29 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      <Modal
+        isOpen={modalFactura.open}
+        onRequestClose={() => setModalFactura({open: false, data: null})}
+        className="bg-white p-8 rounded shadow-md w-full max-w-lg mx-auto mt-32 outline-none"
+        overlayClassName="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30"
+        ariaHideApp={false}
+      >
+        <h3 className="text-xl font-bold mb-4">Datos de Facturación</h3>
+        {modalFactura.data ? (
+          <div className="space-y-2">
+            <div><b>Razón social:</b> {modalFactura.data.razon_social}</div>
+            <div><b>RUT:</b> {modalFactura.data.rut}</div>
+            <div><b>Giro:</b> {modalFactura.data.giro}</div>
+            <div><b>Teléfono:</b> {modalFactura.data.telefono}</div>
+            <div><b>Región:</b> {modalFactura.data.region}</div>
+            <div><b>Comuna:</b> {modalFactura.data.comuna}</div>
+            <div><b>Calle:</b> {modalFactura.data.calle}</div>
+            <div><b>Número:</b> {modalFactura.data.numero}</div>
+            <div><b>Depto/Oficina:</b> {modalFactura.data.depto_oficina}</div>
+          </div>
+        ) : <div>No hay datos de facturación.</div>}
+        <button className="mt-6 text-blue-700 underline" onClick={() => setModalFactura({open: false, data: null})}>Cerrar</button>
+      </Modal>
     </div>
   );
 } 

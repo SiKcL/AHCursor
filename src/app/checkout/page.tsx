@@ -4,6 +4,7 @@ import { useCart } from '@/components/CartContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaTrash } from 'react-icons/fa';
+import Modal from 'react-modal';
 
 interface FormularioCheckout {
   nombre: string;
@@ -86,6 +87,12 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   // Agregar estados para guardar el resumen del pedido
   const [pedidoResumen, setPedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
+  const [direcciones, setDirecciones] = useState<Direccion[]>([]);
+  const [direccionSeleccionada, setDireccionSeleccionada] = useState<number | null>(null);
+  const [modalDireccion, setModalDireccion] = useState(false);
+  const [nuevaDireccion, setNuevaDireccion] = useState({
+    region: '', comuna: '', calle: '', numero: '', depto_oficina: '', nombre_recibe: '', apellido_recibe: '', telefono_recibe: ''
+  });
 
   // Cargar datos personales y dirección principal
   useEffect(() => {
@@ -106,19 +113,10 @@ export default function CheckoutPage() {
     fetch('/api/user?section=direcciones', { headers: { Authorization: 'Bearer ' + token } })
       .then(res => res.json())
       .then((dirs: Direccion[]) => {
+        setDirecciones(Array.isArray(dirs) ? dirs : []);
         if (Array.isArray(dirs) && dirs.length > 0) {
-          const d = dirs[0];
-          setForm((f: FormularioCheckout) => ({
-            ...f,
-            region: d.region || '',
-            comuna: d.comuna || '',
-            calle: d.calle || '',
-            numero: d.numero || '',
-            depto_oficina: d.depto_oficina || '',
-            nombre_recibe: d.nombre_recibe || '',
-            apellido_recibe: d.apellido_recibe || '',
-            telefono_recibe: d.telefono_recibe || ''
-          }));
+          setDireccionSeleccionada(dirs[0].id);
+          setForm(f => ({ ...f, direccion_id: dirs[0].id }));
         }
       });
   }, []);
@@ -134,35 +132,18 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError('');
     setMsg('');
-    // Validar campos básicos
-    for (const key of ['nombre','apellido','rut','email','telefono','region','comuna','calle','numero','nombre_recibe','apellido_recibe','telefono_recibe']) {
+    // Validar solo datos personales y dirección seleccionada
+    for (const key of ['nombre','apellido','rut','email','telefono']) {
       if (!form[key as keyof FormularioCheckout]) {
         setError('Por favor completa todos los campos obligatorios.');
         return;
       }
     }
-    // Siempre guardar la dirección ingresada
-    const token = localStorage.getItem('token');
-    const res2 = await fetch('/api/user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({
-        region: form.region,
-        comuna: form.comuna,
-        calle: form.calle,
-        numero: form.numero,
-        depto_oficina: form.depto_oficina,
-        nombre_recibe: form.nombre_recibe,
-        apellido_recibe: form.apellido_recibe,
-        telefono_recibe: form.telefono_recibe
-      })
-    });
-    if (!res2.ok) {
-      setError('Error guardando dirección');
+    if (!direccionSeleccionada) {
+      setError('Por favor selecciona una dirección de entrega.');
       return;
     }
-    const dataDir = await res2.json();
-    setForm((f: FormularioCheckout) => ({ ...f, direccion_id: dataDir.id }));
+    setForm(f => ({ ...f, direccion_id: direccionSeleccionada }));
     setStep(2);
   };
 
@@ -188,7 +169,7 @@ export default function CheckoutPage() {
       })
     });
     if (res.ok) {
-      setMsg('¡Pedido realizado con éxito!');
+      setMsg('¡Pedido realizado con éxito! Nos comunicaremos contigo para la gestión');
       clearCart();
       setTimeout(() => router.push('/perfil?pedido=ok'), 2000);
     } else {
@@ -232,41 +213,90 @@ export default function CheckoutPage() {
                   <input name="telefono" value={form.telefono} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
                 </div>
               </div>
+              {/* Dirección de entrega */}
               <h4 className="text-lg font-bold mb-2 mt-6 text-[color:var(--primary)]">Dirección de entrega</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Región</label>
-                  <input name="region" value={form.region} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
+              {direcciones.length === 0 ? (
+                <div className="border-2 border-black p-4 mb-4 flex flex-col items-center">
+                  <span>No hay ninguna direccion registrada</span>
+                  <button
+                    className="mt-2 px-4 py-2 bg-blue-100 border border-blue-400 rounded text-blue-800 font-semibold hover:bg-blue-200"
+                    type="button"
+                    onClick={() => setModalDireccion(true)}
+                  >
+                    Añadir una nueva dirección de entrega
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Comuna</label>
-                  <input name="comuna" value={form.comuna} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
+              ) : (
+                <div className="border-2 border-blue-400 p-4 mb-4">
+                  <div className="mb-2 font-semibold">Selecciona una dirección:</div>
+                  <ul>
+                    {direcciones.map(dir => (
+                      <li key={dir.id} className="mb-2 flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="direccion"
+                          checked={direccionSeleccionada === dir.id}
+                          onChange={() => {
+                            setDireccionSeleccionada(dir.id);
+                            setForm(f => ({ ...f, direccion_id: dir.id }));
+                          }}
+                        />
+                        <span>{dir.region}, {dir.comuna}, {dir.calle} #{dir.numero}{dir.depto_oficina ? ', ' + dir.depto_oficina : ''} - {dir.nombre_recibe} {dir.apellido_recibe} ({dir.telefono_recibe})</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    className="mt-2 px-4 py-2 bg-blue-100 border border-blue-400 rounded text-blue-800 font-semibold hover:bg-blue-200"
+                    type="button"
+                    onClick={() => setModalDireccion(true)}
+                  >
+                    Añadir una nueva dirección de entrega
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Calle</label>
-                  <input name="calle" value={form.calle} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Número</label>
-                  <input name="numero" value={form.numero} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold mb-1">N° depto / oficina / otro dato (si aplica)</label>
-                  <input name="depto_oficina" value={form.depto_oficina} onChange={handleChange} className="border rounded px-3 py-2 w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Nombre de quien recibe</label>
-                  <input name="nombre_recibe" value={form.nombre_recibe} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Apellido de quien recibe</label>
-                  <input name="apellido_recibe" value={form.apellido_recibe} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold mb-1">Teléfono de quien recibe</label>
-                  <input name="telefono_recibe" value={form.telefono_recibe} onChange={handleChange} className="border rounded px-3 py-2 w-full" required />
-                </div>
-              </div>
+              )}
+              <Modal
+                isOpen={modalDireccion}
+                onRequestClose={() => setModalDireccion(false)}
+                className="bg-white p-8 rounded shadow-md w-full max-w-lg mx-auto mt-32 outline-none"
+                overlayClassName="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30"
+                ariaHideApp={false}
+              >
+                <h3 className="text-xl font-bold mb-4">Nueva dirección de entrega</h3>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/user', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                      body: JSON.stringify(nuevaDireccion)
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      // Recargar direcciones y seleccionar la nueva
+                      const resDirs = await fetch('/api/user?section=direcciones', { headers: { Authorization: 'Bearer ' + token } });
+                      const dirs: Direccion[] = await resDirs.json();
+                      setDirecciones(dirs);
+                      setDireccionSeleccionada(data.id);
+                      setForm(f => ({ ...f, direccion_id: data.id }));
+                      setModalDireccion(false);
+                      setNuevaDireccion({ region: '', comuna: '', calle: '', numero: '', depto_oficina: '', nombre_recibe: '', apellido_recibe: '', telefono_recibe: '' });
+                    }
+                  }}
+                  className="flex flex-col gap-3"
+                >
+                  <input type="text" placeholder="Región" className="border px-3 py-2 rounded" value={nuevaDireccion.region} onChange={e => setNuevaDireccion(a => ({ ...a, region: e.target.value }))} required />
+                  <input type="text" placeholder="Comuna" className="border px-3 py-2 rounded" value={nuevaDireccion.comuna} onChange={e => setNuevaDireccion(a => ({ ...a, comuna: e.target.value }))} required />
+                  <input type="text" placeholder="Calle" className="border px-3 py-2 rounded" value={nuevaDireccion.calle} onChange={e => setNuevaDireccion(a => ({ ...a, calle: e.target.value }))} required />
+                  <input type="text" placeholder="Número" className="border px-3 py-2 rounded" value={nuevaDireccion.numero} onChange={e => setNuevaDireccion(a => ({ ...a, numero: e.target.value }))} required />
+                  <input type="text" placeholder="N° depto / oficina / otro dato (si aplica)" className="border px-3 py-2 rounded" value={nuevaDireccion.depto_oficina} onChange={e => setNuevaDireccion(a => ({ ...a, depto_oficina: e.target.value }))} />
+                  <input type="text" placeholder="Nombre de quien recibe" className="border px-3 py-2 rounded" value={nuevaDireccion.nombre_recibe} onChange={e => setNuevaDireccion(a => ({ ...a, nombre_recibe: e.target.value }))} required />
+                  <input type="text" placeholder="Apellido de quien recibe" className="border px-3 py-2 rounded" value={nuevaDireccion.apellido_recibe} onChange={e => setNuevaDireccion(a => ({ ...a, apellido_recibe: e.target.value }))} required />
+                  <input type="text" placeholder="Teléfono de quien recibe" className="border px-3 py-2 rounded" value={nuevaDireccion.telefono_recibe} onChange={e => setNuevaDireccion(a => ({ ...a, telefono_recibe: e.target.value }))} required />
+                  <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition">Guardar dirección</button>
+                  <button type="button" className="mt-2 text-blue-700 underline" onClick={() => setModalDireccion(false)}>Cancelar</button>
+                </form>
+              </Modal>
               {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
               <div className="flex justify-between mt-8">
                 <button className="text-[color:var(--primary)] hover:underline" type="button" onClick={() => router.back()}>&lt; Volver</button>
@@ -294,10 +324,16 @@ export default function CheckoutPage() {
                 </ul>
               </div>
               <div className="mb-4">
-                <strong>Dirección:</strong> {form.region}, {form.comuna}, {form.calle} #{form.numero}{form.depto_oficina && `, ${form.depto_oficina}`}
+                <strong>Dirección:</strong> {direcciones.find(d => d.id === direccionSeleccionada) ? (
+                  <span>{direcciones.find(d => d.id === direccionSeleccionada)?.region}, {direcciones.find(d => d.id === direccionSeleccionada)?.comuna}, {direcciones.find(d => d.id === direccionSeleccionada)?.calle} #{direcciones.find(d => d.id === direccionSeleccionada)?.numero}{direcciones.find(d => d.id === direccionSeleccionada)?.depto_oficina && `, ${direcciones.find(d => d.id === direccionSeleccionada)?.depto_oficina}`} - {direcciones.find(d => d.id === direccionSeleccionada)?.nombre_recibe} {direcciones.find(d => d.id === direccionSeleccionada)?.apellido_recibe} ({direcciones.find(d => d.id === direccionSeleccionada)?.telefono_recibe})</span>
+                ) : <span>No seleccionada</span>}
               </div>
               <div className="mb-4 font-bold text-lg">Total: ${pedidoResumen ? pedidoResumen.total.toLocaleString() : total.toLocaleString()}</div>
-              {msg && <div className="text-green-600 text-sm mb-2">{msg}</div>}
+              {msg && (
+                <div className="text-green-700 text-xl font-bold mb-4">
+                  ¡Pedido realizado con éxito!<br />Nos comunicaremos contigo para la gestión
+                </div>
+              )}
               {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
               <div className="flex gap-4 mt-2">
                 <button type="button" onClick={handlePagar} className="bg-blue-900 text-white px-6 py-2 rounded font-bold hover:bg-blue-800 mr-2">Realizar Pedido</button>

@@ -45,7 +45,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Obtener datos de facturación
       try {
         const client = await pool.connect();
-        const result = await client.query('SELECT razon_social, rut, giro, telefono, region, comuna, calle, numero, depto_oficina FROM facturacion WHERE usuario_id = $1', [userId]);
+        let targetUserId = userId;
+        if (req.query.user_id) {
+          // Si es admin, permitir consultar por user_id
+          const adminCheck = await client.query('SELECT rol FROM usuarios WHERE id = $1', [userId]);
+          if (adminCheck.rows.length > 0 && adminCheck.rows[0].rol === 'admin') {
+            targetUserId = parseInt(req.query.user_id as string, 10);
+          }
+        }
+        const result = await client.query('SELECT razon_social, rut, giro, telefono, region, comuna, calle, numero, depto_oficina FROM facturacion WHERE usuario_id = $1', [targetUserId]);
         client.release();
         if (result.rows.length === 0) return res.status(200).json(null);
         return res.status(200).json(result.rows[0]);
@@ -114,7 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Obtener todos los usuarios con resumen de dirección principal y cantidad de pedidos
       try {
         const client = await pool.connect();
-        const result = await client.query('SELECT id, nombre, apellido, rut, email, factura FROM usuarios ORDER BY created_at DESC');
+        const result = await client.query('SELECT id, nombre, apellido, rut, email, telefono, factura, rol, last_login FROM usuarios ORDER BY created_at DESC');
         const users = result.rows;
         // Para cada usuario, buscar su dirección principal (la más reciente) y contar pedidos
         for (const u of users) {
@@ -164,19 +172,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else if (req.method === 'DELETE') {
     // Permitir que solo el admin elimine usuarios completos
     const adminId = getUserIdFromRequest(req);
-    let adminEmail = null;
+    let adminRol = null;
     if (adminId) {
       try {
         const client = await pool.connect();
-        const result = await client.query('SELECT email FROM usuarios WHERE id = $1', [adminId]);
+        const result = await client.query('SELECT rol FROM usuarios WHERE id = $1', [adminId]);
         client.release();
         if (result.rows.length > 0) {
-          adminEmail = result.rows[0].email;
+          adminRol = result.rows[0].rol;
         }
       } catch {}
     }
     // Si se envía user_id, es intento de eliminar usuario completo (solo admin)
-    if (req.body.user_id && adminEmail === 'admin@admin.com') {
+    if (req.body.user_id && adminRol === 'admin') {
       const userIdToDelete = req.body.user_id;
       try {
         const client = await pool.connect();

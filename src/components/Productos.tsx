@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useKeenSlider } from 'keen-slider/react'
 import 'keen-slider/keen-slider.min.css'
 import Image from 'next/image'
 import ProductoModal from './ProductoModal' 
@@ -30,40 +29,21 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
   }));
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const { addToCart } = useCart();
-  // Eliminar lógica de favoritos
+  // Eliminar la función handleAddToCart y su estado relacionado (showToast, setShowToast, useEffect) ya que ya no se usa.
 
  
-  const [sliderRef] = useKeenSlider<HTMLDivElement>({
-    loop: false,
-    mode: "free-snap",
-    slides: {
-      perView: 2, 
-      spacing: 15,
-    },
-    breakpoints: {
-      '(min-width: 768px)': {
-        slides: { perView: 3, spacing: 20 },
-      },
-      '(min-width: 1024px)': {
-        slides: { perView: 4, spacing: 25 },
-      },
-    },
-  });
-  
-
+  // Eliminar lógica de slider y usar grid
   if (productosMapeados.length === 0) return null;
 
   return (
     <>
-      <div ref={sliderRef} className="keen-slider">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
         {productosMapeados.map((producto) => (
           <div 
             key={producto.id} 
-            className="keen-slider__slide group"
+            className="group"
           >
             <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer flex flex-col relative">
-              {/* Quitar estrella de favorito */}
-              {/* Contenedor de la imagen con aspect ratio para que no se deforme */}
               <div className="relative w-full aspect-[4/5] bg-gray-100" onClick={() => setProductoSeleccionado(producto)}>
                 <Image
                   src={producto.imageUrl || '/placeholder.png'}
@@ -86,7 +66,7 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                       nombre: producto.nombre,
                       precio: producto.precio,
                       precioBase: producto.precio,
-                      imageUrl: producto.imageUrl || '',
+                      imageUrl: producto.imageUrl || producto.imagen || '',
                       stock: producto.stock,
                     })}
                   >
@@ -105,7 +85,6 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
           </div>
         ))}
       </div>
-
       {productoSeleccionado && (
         <ProductoModal 
           producto={productoSeleccionado}

@@ -78,6 +78,20 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla usuarios creada/verificada');
 
+    // Modificar tabla usuarios para agregar campo rol
+    await client.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(20) DEFAULT 'user';
+    `);
+    await client.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+    `);
+    // Crear admin por defecto si no existe
+    await client.query(`
+      INSERT INTO usuarios (nombre, apellido, rut, email, telefono, password_hash, factura, rol)
+      VALUES ('admin', 'admin1', '20.220.220-1', 'admin@admin.com', '', '$2b$10$VwlgrYFBUZlpEghYJHrRCOgOB/KX7RJpuFy0nz5UnzccBvicr08c6', false, 'admin')
+      ON CONFLICT (email) DO NOTHING;
+    `);
+
     // Crear tabla de direcciones
     await client.query(`
       CREATE TABLE IF NOT EXISTS direcciones (

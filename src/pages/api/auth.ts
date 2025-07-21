@@ -25,10 +25,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(409).json({ error: 'El email ya está registrado.' });
         }
         const hash = await bcrypt.hash(password, 10);
+        // Permitir especificar el rol, por defecto 'user'
+        const rol = data.rol || 'user';
         const result = await client.query(
-          `INSERT INTO usuarios (nombre, apellido, rut, fecha_nacimiento, email, telefono, password_hash, factura)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, nombre, apellido, email` ,
-          [nombre, apellido, rut, fecha_nacimiento, email, telefono, hash, !!factura]
+          `INSERT INTO usuarios (nombre, apellido, rut, fecha_nacimiento, email, telefono, password_hash, factura, rol)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, nombre, apellido, email, rol` ,
+          [nombre, apellido, rut, fecha_nacimiento, email, telefono, hash, !!factura, rol]
         );
         const user = result.rows[0];
         // Guardar datos de facturación si corresponde
@@ -51,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         client.release();
         // Generar token
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: user.id, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: '7d' });
         return res.status(201).json({ user, token });
       } catch {
         return res.status(500).json({ error: 'Error registrando usuario.' });
@@ -75,7 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
         }
         // Generar token
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: user.id, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: '7d' });
+        // Actualizar last_login
+        const client2 = await pool.connect();
+        await client2.query('UPDATE usuarios SET last_login = NOW() WHERE id = $1', [user.id]);
+        client2.release();
         // No enviar hash
         delete user.password_hash;
         return res.status(200).json({ user, token });

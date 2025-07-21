@@ -77,7 +77,9 @@ export const initializeDatabase = async () => {
         telefono VARCHAR(30),
         password_hash VARCHAR(255) NOT NULL,
         factura BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        rol VARCHAR(20) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
       );
     `);
 

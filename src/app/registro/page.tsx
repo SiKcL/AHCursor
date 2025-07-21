@@ -2,9 +2,11 @@
 export const dynamic = "force-dynamic";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/AuthContext';
 
 export default function RegistroPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [form, setForm] = useState({
     nombre: '', apellido: '', rut: '', fecha_nacimiento: '', email: '', telefono: '', password: '', repite: '', factura: false,
     region: '', comuna: '', calle: '', numero: '', depto_oficina: '', nombre_recibe: '', apellido_recibe: '', telefono_recibe: ''
@@ -60,6 +62,12 @@ export default function RegistroPage() {
     }
     if (!form.email) {
       setError('El campo email es obligatorio.'); return;
+    }
+    // Filtro de seguridad para correos de administrador
+    const adminDomains = ['@admin.cl', '@admin.com', '@agricolahorizonte.cl'];
+    if (adminDomains.some(domain => form.email.trim().toLowerCase().endsWith(domain))) {
+      setError('Por favor ingresa un correo correcto. No puedes usar un correo de administrador.');
+      return;
     }
     if (!form.password) {
       setError('El campo contraseña es obligatorio.'); return;
@@ -121,6 +129,7 @@ export default function RegistroPage() {
       setSuccess('¡Registro exitoso! Redirigiendo...');
       if (data.token) {
         localStorage.setItem('token', data.token);
+        login(data.token);
       }
       setTimeout(() => router.push('/perfil'), 1500);
     } else {

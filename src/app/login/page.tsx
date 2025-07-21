@@ -2,9 +2,11 @@
 export const dynamic = "force-dynamic";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,9 @@ export default function LoginPage() {
     const data = await res.json();
     if (res.ok) {
       localStorage.setItem('token', data.token);
-      if (form.email === 'admin@admin.com') {
+      login(data.token);
+      const adminDomains = ['@admin.cl', '@admin.com', '@agricolahorizonte.cl'];
+      if (adminDomains.some(domain => form.email.endsWith(domain))) {
         router.push('/admin');
         return;
       }

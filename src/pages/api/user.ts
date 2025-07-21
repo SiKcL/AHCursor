@@ -197,8 +197,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await client.query('DELETE FROM usuarios WHERE id = $1', [userIdToDelete]);
         client.release();
         return res.status(200).json({ success: true });
-      } catch {
-        return res.status(500).json({ error: 'Error eliminando usuario' });
+      } catch (err) {
+        console.error('Error eliminando usuario:', err);
+        return res.status(500).json({ error: 'Error eliminando usuario', detalle: (err as Error).message });
       }
     }
     // Eliminar dirección por id

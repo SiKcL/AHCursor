@@ -28,17 +28,17 @@ export default function Header() {
       style={{ color: "var(--foreground)" }}
     >
       <div className="flex flex-row items-center md:w-1/3 w-full justify-between md:justify-start">
-        <Link href={"/"} className="flex items-center gap-3">
-          <Image
-            src="/logo2.png"
-            alt="Agrícola Horizonte Logo header"
+      <Link href={"/"} className="flex items-center gap-3">
+      <Image
+        src="/logo2.png"
+        alt="Agrícola Horizonte Logo header"
             width={60}
             height={60}
-            className="rounded-full"
-          />
-        </Link>
+        className="rounded-full"
+      />
+      </Link>
         <div className="text-2xl font-bold ml-2" style={{ color: "var(--primary)", fontFamily: 'var(--font-avigea)' }}>
-          <Link href={"/"}>Agrícola Horizonte</Link>
+        <Link href={"/"}>Agrícola Horizonte</Link>
         </div>
         {/* Mobile menu toggle */}
         <button
@@ -50,18 +50,18 @@ export default function Header() {
       </div>
       {/* Navegación principal al centro en md+ */}
       <nav className="hidden md:flex gap-6 text-sm font-medium justify-center md:w-1/3">
-        <Link href="/nosotros" className="hover:text-[color:var(--secondary)]">
-          Nosotros
-        </Link>
-        <Link href="/productos" className="hover:text-[color:var(--secondary)]">
-          Productos
-        </Link>
-        <Link href="/galeria" className="hover:text-[color:var(--secondary)]">
-          Galería
-        </Link>
-        <Link href="/preguntas" className="hover:text-[color:var(--secondary)]">
-          Preguntas Frecuentes
-        </Link>
+      <Link href="/nosotros" className="hover:text-[color:var(--secondary)]">
+        Nosotros
+      </Link>
+      <Link href="/productos" className="hover:text-[color:var(--secondary)]">
+        Productos
+      </Link>
+      <Link href="/galeria" className="hover:text-[color:var(--secondary)]">
+        Galería
+      </Link>
+      <Link href="/preguntas" className="hover:text-[color:var(--secondary)]">
+        Preguntas Frecuentes
+      </Link>
       </nav>
       {/* Iconos a la derecha en md+ */}
       <div className="flex flex-row flex-wrap items-center gap-4 mt-4 md:mt-0 md:ml-6 md:w-1/3 md:justify-end">

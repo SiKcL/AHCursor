@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Modal from 'react-modal';
 
-// 1. Actualizar la interfaz Producto para incluir stock
+// 1. Actualizar la interfaz Producto para incluir stock y descuentos
 interface Producto {
   id: number;
   nombre: string;
@@ -14,6 +14,7 @@ interface Producto {
   precio: number;
   imagen: string | null;
   stock: number;
+  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, porcentaje: number }[] } | null;
 }
 
 interface ImagenGaleria {
@@ -406,6 +407,9 @@ export default function AdminPage() {
     imagen: "",
     file: null as File | null,
     stock: 0,
+    tieneDescuento: false,
+    descuentos: null as { tipo: 'general' | 'por_cantidad'; items: { min: number; porcentaje: number }[] } | null,
+    descuentoGeneral: 0,
   });
   const [editando, setEditando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -570,6 +574,7 @@ export default function AdminPage() {
       precio: form.precio,
       imagen,
       stock: form.stock,
+      descuentos: form.descuentos,
     };
     if (editando) {
       await fetch("/api/productos", {
@@ -586,7 +591,7 @@ export default function AdminPage() {
       });
       setMensaje("¡Producto añadido con éxito!");
     }
-    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0 });
+    setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0, tieneDescuento: false, descuentos: null, descuentoGeneral: 0 });
     setEditando(false);
     cargarProductos();
     setCargando(false);
@@ -595,11 +600,16 @@ export default function AdminPage() {
 
   function handleEditar(producto: Producto) {
     setForm({
-      ...producto,
+      id: producto.id,
+      nombre: producto.nombre,
       descripcion: producto.descripcion ?? "",
+      precio: producto.precio,
       imagen: producto.imagen ?? "",
       file: null,
       stock: producto.stock ?? 0,
+      tieneDescuento: !!producto.descuentos,
+      descuentos: producto.descuentos ?? null,
+      descuentoGeneral: producto.descuentos?.tipo === 'general' ? producto.descuentos.items[0]?.porcentaje || 0 : 0,
     });
     setEditando(true);
   }
@@ -736,31 +746,166 @@ export default function AdminPage() {
             <label className="block mb-1">Stock</label>
             <input name="stock" type="number" value={form.stock} onChange={handleFormChange} className="w-full border px-3 py-2 rounded" min={0} required />
           </div>
+          {/* Mostrar sección de descuentos solo al editar */}
+          {editando && (
+            <>
+              <div className="mb-3">
+                <label className="block mb-1">¿Tiene descuento por volumen?</label>
+                <input
+                  type="checkbox"
+                  checked={form.tieneDescuento}
+                  onChange={e => setForm(f => ({ ...f, tieneDescuento: e.target.checked, descuentos: e.target.checked ? { tipo: 'por_cantidad', items: [] } : null }))}
+                />
+              </div>
+              {form.tieneDescuento && (
+                <div className="mb-3 border rounded p-3 bg-blue-50">
+                  <label className="block mb-1 font-semibold">Tipo de descuento:</label>
+                  <select
+                    value={form.descuentos?.tipo || 'por_cantidad'}
+                    onChange={e => setForm(f => ({ ...f, descuentos: { ...f.descuentos!, tipo: e.target.value as 'general' | 'por_cantidad', items: f.descuentos?.items || [] } }))}
+                    className="border rounded px-2 py-1 mb-2"
+                  >
+                    <option value="por_cantidad">Por cantidad</option>
+                    <option value="general">Descuento general</option>
+                  </select>
+                  {form.descuentos?.tipo === 'general' ? (
+                    <div>
+                      <label className="block mb-1">% de descuento general:</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={form.descuentoGeneral}
+                        onChange={e => setForm(f => ({ ...f, descuentoGeneral: Number(e.target.value), descuentos: { ...f.descuentos!, items: [{ min: 1, porcentaje: Number(e.target.value) }] } }))}
+                        className="border rounded px-2 py-1"
+                      />
+                      <span className="ml-2">%</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block mb-1">Descuentos por cantidad:</label>
+                      {(form.descuentos?.items || []).map((item, idx) => (
+                        <div key={idx} className="flex gap-2 items-center mb-2">
+                          <span>Desde</span>
+                          <input
+                            type="number"
+                            value={item.min}
+                            min={1}
+                            onChange={e => setForm(f => ({
+                              ...f,
+                              descuentos: {
+                                ...f.descuentos!,
+                                items: f.descuentos!.items.map((it, i) => i === idx ? { ...it, min: Number(e.target.value) } : it)
+                              }
+                            }))}
+                            className="border rounded px-2 py-1 w-20"
+                          />
+                          <span>unidades →</span>
+                          <input
+                            type="number"
+                            value={item.porcentaje}
+                            min={1}
+                            max={99}
+                            onChange={e => setForm(f => ({
+                              ...f,
+                              descuentos: {
+                                ...f.descuentos!,
+                                items: f.descuentos!.items.map((it, i) => i === idx ? { ...it, porcentaje: Number(e.target.value) } : it)
+                              }
+                            }))}
+                            className="border rounded px-2 py-1 w-24"
+                          />
+                          <span>% de descuento</span>
+                          <button type="button" className="text-red-600 ml-2" onClick={() => setForm(f => ({
+                            ...f,
+                            descuentos: {
+                              ...f.descuentos!,
+                              items: f.descuentos!.items.filter((_, i) => i !== idx)
+                            }
+                          }))}>Eliminar</button>
+                        </div>
+                      ))}
+                      <button type="button" className="bg-blue-600 text-white px-3 py-1 rounded mt-2" onClick={() => setForm(f => ({
+                        ...f,
+                        descuentos: {
+                          ...f.descuentos!,
+                          items: [...(f.descuentos?.items || []), { min: 1, porcentaje: 1 }]
+                        }
+                      }))}>Añadir descuento</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
           <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition" disabled={cargando}>{editando ? "Actualizar" : "Crear"}</button>
           {editando && (
-            <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0 }); }}>Cancelar</button>
+            <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0, tieneDescuento: false, descuentos: null, descuentoGeneral: 0 }); }}>Cancelar</button>
           )}
         </form>
         <h3 className="text-lg font-semibold mb-4">Productos</h3>
         {cargando ? <p>Cargando...</p> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {productos.map(producto => (
-              <div key={producto.id} className="bg-white rounded shadow p-4 flex flex-col">
-                {producto.imagen && (
-                  <Image src={producto.imagen} alt={producto.nombre} width={400} height={192} className="w-full h-48 object-cover mb-2 rounded" />
-                )}
-                <h4 className="font-bold text-lg">{producto.nombre}</h4>
-                <p className="text-gray-600">{producto.descripcion}</p>
-                <p className="text-green-700 font-semibold mt-2">${producto.precio}</p>
-                <p className="text-gray-700 text-sm mt-1">
-                  Stock: {producto.stock === 0 ? <span className="text-red-600 font-bold">0 ❌</span> : <span className="font-bold">{producto.stock}</span>}
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <button onClick={() => handleEditar(producto)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Editar</button>
-                  <button onClick={() => handleEliminar(producto.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Eliminar</button>
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+            {productos.map(producto => {
+              let badge = null;
+              if (producto.descuentos) {
+                if (producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0) {
+                  badge = (
+                    <span className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
+                      -{producto.descuentos.items[0].porcentaje}% Descuento
+                    </span>
+                  );
+                } else if (producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0) {
+                  const min = Math.min(...producto.descuentos.items.map(d => d.min));
+                  badge = (
+                    <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
+                      Descuentos desde {min} un.
+                    </span>
+                  );
+                }
+              }
+              return (
+                <div key={producto.id} className="group">
+                  <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer flex flex-col relative">
+                    {/* Badge de descuento */}
+                    {badge}
+                    <div className="relative w-full aspect-[4/5] bg-gray-100">
+                      <Image
+                        src={producto.imagen || '/placeholder.png'}
+                        alt={`Imagen de ${producto.nombre}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="p-4 text-center flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
+                        {/* Mostrar precio original tachado si hay descuento */}
+                        {producto.descuentos && producto.descuentos.items.length > 0 ? (
+                          <>
+                            <p className="text-sm text-gray-400 line-through">${producto.precio}</p>
+                            <p className="text-lg font-bold text-green-600 mt-1">
+                              {(() => {
+                                // Calcular el precio con descuento mínimo
+                                const minDesc = Math.min(...producto.descuentos.items.map(d => d.porcentaje));
+                                return `$${Math.round(producto.precio * (1 - minDesc / 100))}`;
+                              })()}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-lg font-bold text-green-600 mt-1">${producto.precio}</p>
+                        )}
+                        <p className="text-sm text-gray-500 mt-1">Stock: {producto.stock}</p>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <button onClick={() => handleEditar(producto)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Editar</button>
+                        <button onClick={() => handleEliminar(producto.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Eliminar</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

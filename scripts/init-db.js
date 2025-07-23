@@ -37,6 +37,12 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Tabla productos creada/verificada');
 
+    // Agregar columna descuentos si no existe
+    await client.query(`
+      ALTER TABLE productos ADD COLUMN IF NOT EXISTS descuentos JSONB;
+    `);
+    console.log('✅ Columna descuentos agregada/verificada en productos');
+
     // Crear tabla de galería
     await client.query(`
       CREATE TABLE IF NOT EXISTS galeria (

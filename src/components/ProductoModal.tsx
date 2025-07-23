@@ -12,6 +12,7 @@ interface Producto {
   precio: number;
   imagen?: string | null;
   stock?: number;
+  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, porcentaje: number }[] } | null;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -34,39 +35,50 @@ export default function ProductoModal({ producto, onClose }: ProductoModalProps)
 
   // Eliminar lógica de favoritos
   // Tramos de descuento por volumen y porcentajes
-  const DESCUENTOS = [
-    { min: 200, porcentaje: 49.5 },
-    { min: 160, porcentaje: 44.4 },
-    { min: 100, porcentaje: 34.3 },
-    { min: 50, porcentaje: 24.2 },
-    { min: 25, porcentaje: 14.1 },
-  ];
+  // Eliminar la constante DESCUENTOS (definida pero no usada)
   const PRECIO_BASE = productoMapeado.precio;
 
-  function getDescuentoPorcentaje(cantidad: number) {
-    for (const tramo of DESCUENTOS) {
-      if (cantidad >= tramo.min) return tramo.porcentaje;
+  // Lógica de descuentos personalizados
+  const descuentos = productoMapeado.descuentos;
+  function getDescuentoPorcentajePersonalizado(cantidad: number) {
+    if (!descuentos) return 0;
+    if (descuentos.tipo === 'general' && descuentos.items.length > 0) {
+      return descuentos.items[0].porcentaje;
+    }
+    if (descuentos.tipo === 'por_cantidad') {
+      // Buscar el mayor min <= cantidad
+      const items = [...descuentos.items].sort((a, b) => b.min - a.min);
+      for (const item of items) {
+        if (cantidad >= item.min) return item.porcentaje;
+      }
     }
     return 0;
   }
-
-  function getPrecioUnitario(cantidad: number) {
-    const descuento = getDescuentoPorcentaje(cantidad);
+  function getPrecioUnitarioPersonalizado(cantidad: number) {
+    const descuento = getDescuentoPorcentajePersonalizado(cantidad);
     return Math.round(PRECIO_BASE * (1 - descuento / 100));
   }
-
-  const precioUnitario = getPrecioUnitario(cantidad);
+  const precioUnitario = getPrecioUnitarioPersonalizado(cantidad);
   const totalPagar = precioUnitario * cantidad;
-
-  // Generar tabla de descuentos dinámica
-  const tablaDescuentos = DESCUENTOS.map(tramo => {
-    const precioFinal = Math.round(PRECIO_BASE * (1 - tramo.porcentaje / 100));
-    return (
-      <li key={tramo.min}>
-        Sobre {tramo.min} un. – <span className="font-bold">{formatPrice(precioFinal)}</span> iva incl.
-      </li>
-    );
-  });
+  // Tabla de descuentos personalizada
+  let tablaDescuentos = null;
+  if (descuentos) {
+    if (descuentos.tipo === 'general' && descuentos.items.length > 0) {
+      tablaDescuentos = (
+        <li>
+          Cualquier cantidad – <span className="font-bold">{descuentos.items[0].porcentaje}% de descuento</span>
+        </li>
+      );
+    } else if (descuentos.tipo === 'por_cantidad') {
+      tablaDescuentos = descuentos.items
+        .sort((a, b) => a.min - b.min)
+        .map((item, idx) => (
+          <li key={idx}>
+            Sobre {item.min} un. – <span className="font-bold">{item.porcentaje}% de descuento</span>
+          </li>
+        ));
+    }
+  }
 
   return (
     <div 
@@ -86,97 +98,99 @@ export default function ProductoModal({ producto, onClose }: ProductoModalProps)
         {/* Sección de la Imagen */}
         <div className="w-full md:w-1/2 p-2 md:p-4 flex items-center justify-center bg-gray-100">
           <div className="relative w-full h-48 md:h-[400px]">
-            <Image
-              src={productoMapeado.imageUrl || '/placeholder.png'}
-              alt={`Imagen de ${productoMapeado.nombre}`}
-              fill
+                <Image
+                    src={productoMapeado.imageUrl || '/placeholder.png'}
+                    alt={`Imagen de ${productoMapeado.nombre}`}
+                    fill
               className="object-contain"
-            />
-          </div>
+                />
+            </div>
         </div>
         {/* Sección de la Descripción */}
         <div className="w-full md:w-1/2 p-4 md:p-8 flex flex-col justify-center">
-          <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2">
             <h2 className="text-2xl md:text-4xl font-bold text-gray-900">{productoMapeado.nombre}</h2>
-          </div>
+            </div>
           <p className="text-gray-700 mt-2 md:mt-4 text-base leading-relaxed">
-            {productoMapeado.descripcion || 'Este producto no tiene una descripción detallada.'}
-          </p>
+                {productoMapeado.descripcion || 'Este producto no tiene una descripción detallada.'}
+            </p>
           <div className="text-2xl md:text-4xl font-bold text-green-600 mt-4 md:mt-8">
             {formatPrice(precioUnitario)} <span className="text-base font-normal text-gray-600">IVA incl.</span>
           </div>
-          {typeof productoMapeado.stock === 'number' && (
-            <div className="text-sm text-gray-500 mt-1">Stock: {productoMapeado.stock}</div>
-          )}
-          {/* Tabla de descuentos por volumen */}
-          <div className="mt-3 mb-2">
-            <div className="bg-blue-50 border border-blue-200 rounded p-2 md:p-3 text-blue-800 text-xs md:text-sm font-semibold mb-2">
-              Este producto cuenta con descuento por volumen
+            {typeof productoMapeado.stock === 'number' && (
+              <div className="text-sm text-gray-500 mt-1">Stock: {productoMapeado.stock}</div>
+            )}
+            {/* Tabla de descuentos por volumen */}
+          {descuentos && (
+            <div className="mt-3 mb-2">
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 md:p-3 text-blue-800 text-xs md:text-sm font-semibold mb-2">
+                Este producto cuenta con descuento por volumen
+              </div>
+              <ul className="text-xs md:text-sm text-gray-700 space-y-1">
+                {tablaDescuentos}
+              </ul>
             </div>
-            <ul className="text-xs md:text-sm text-gray-700 space-y-1">
-              {tablaDescuentos}
-            </ul>
-          </div>
-          {/* Selector de cantidad y total a pagar */}
-          <div className="flex items-center gap-2 mt-4">
-            <span className="text-gray-700 font-medium">Cantidad</span>
-            <button type="button" className="bg-gray-200 px-2 rounded text-lg" onClick={() => setCantidad(c => Math.max(1, c - 1))} disabled={(productoMapeado.stock as number ?? 0) === 0 || cantidad <= 1}>-</button>
-            <input
-              type="number"
-              min={1}
-              max={(productoMapeado.stock as number ?? 0)}
-              value={cantidad}
-              onChange={e => {
-                let val = parseInt(e.target.value, 10);
-                if (isNaN(val) || val < 1) val = 1;
-                if ((productoMapeado.stock as number ?? 0) && val > (productoMapeado.stock as number ?? 0)) val = (productoMapeado.stock as number ?? 0);
-                setCantidad(val);
-              }}
-              onBlur={e => {
-                let val = parseInt(e.target.value, 10);
-                if (isNaN(val) || val < 1) val = 1;
-                if ((productoMapeado.stock as number ?? 0) && val > (productoMapeado.stock as number ?? 0)) val = (productoMapeado.stock as number ?? 0);
-                if (val !== cantidad) setCantidad(val);
-              }}
-              onFocus={e => e.target.select()}
-              className="w-14 md:w-16 text-center border rounded px-2 py-1 text-lg font-bold"
-              disabled={(productoMapeado.stock as number ?? 0) === 0}
-            />
-            <button type="button" className="bg-gray-200 px-2 rounded text-lg" onClick={() => setCantidad(c => Math.min((productoMapeado.stock as number ?? 0), c + 1))} disabled={(productoMapeado.stock as number ?? 0) === 0 || cantidad >= (productoMapeado.stock as number ?? 0)}>+</button>
-          </div>
-          <div className="mt-2 text-green-700 font-bold text-lg">
-            A pagar: {formatPrice(totalPagar)}
-          </div>
-          {(productoMapeado.stock as number ?? 0) > 0 ? (
-            <div className="flex items-center gap-4 mt-8">
-              <button
-                className="bg-blue-700 text-white px-6 py-2 rounded font-semibold hover:bg-blue-800 transition w-full"
-                onClick={() => {
-                  addToCart({
-                    id: productoId,
-                    nombre: productoMapeado.nombre,
-                    precio: precioUnitario,
-                    precioBase: PRECIO_BASE,
-                    imageUrl: productoMapeado.imageUrl || '',
-                    cantidad,
-                    stock: (productoMapeado.stock as number ?? 0),
-                  });
-                  onClose();
+          )}
+            {/* Selector de cantidad y total a pagar */}
+            <div className="flex items-center gap-2 mt-4">
+              <span className="text-gray-700 font-medium">Cantidad</span>
+              <button type="button" className="bg-gray-200 px-2 rounded text-lg" onClick={() => setCantidad(c => Math.max(1, c - 1))} disabled={(productoMapeado.stock as number ?? 0) === 0 || cantidad <= 1}>-</button>
+              <input
+                type="number"
+                min={1}
+                max={(productoMapeado.stock as number ?? 0)}
+                value={cantidad}
+                onChange={e => {
+                  let val = parseInt(e.target.value, 10);
+                  if (isNaN(val) || val < 1) val = 1;
+                  if ((productoMapeado.stock as number ?? 0) && val > (productoMapeado.stock as number ?? 0)) val = (productoMapeado.stock as number ?? 0);
+                  setCantidad(val);
                 }}
-              >
-                Añadir al carrito
-              </button>
+                onBlur={e => {
+                  let val = parseInt(e.target.value, 10);
+                  if (isNaN(val) || val < 1) val = 1;
+                  if ((productoMapeado.stock as number ?? 0) && val > (productoMapeado.stock as number ?? 0)) val = (productoMapeado.stock as number ?? 0);
+                  if (val !== cantidad) setCantidad(val);
+                }}
+                onFocus={e => e.target.select()}
+              className="w-14 md:w-16 text-center border rounded px-2 py-1 text-lg font-bold"
+                disabled={(productoMapeado.stock as number ?? 0) === 0}
+              />
+              <button type="button" className="bg-gray-200 px-2 rounded text-lg" onClick={() => setCantidad(c => Math.min((productoMapeado.stock as number ?? 0), c + 1))} disabled={(productoMapeado.stock as number ?? 0) === 0 || cantidad >= (productoMapeado.stock as number ?? 0)}>+</button>
             </div>
-          ) : (
-            <div className="flex items-center gap-4 mt-8">
-              <button
+            <div className="mt-2 text-green-700 font-bold text-lg">
+              A pagar: {formatPrice(totalPagar)}
+            </div>
+            {(productoMapeado.stock as number ?? 0) > 0 ? (
+              <div className="flex items-center gap-4 mt-8">
+                <button
+                className="bg-blue-700 text-white px-6 py-2 rounded font-semibold hover:bg-blue-800 transition w-full"
+                  onClick={() => {
+                    addToCart({
+                      id: productoId,
+                      nombre: productoMapeado.nombre,
+                      precio: precioUnitario,
+                      precioBase: PRECIO_BASE,
+                      imageUrl: productoMapeado.imageUrl || '',
+                      cantidad,
+                      stock: (productoMapeado.stock as number ?? 0),
+                    });
+                    onClose();
+                  }}
+                >
+                  Añadir al carrito
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 mt-8">
+                <button
                 className="bg-red-600 text-white px-6 py-2 rounded font-semibold cursor-not-allowed opacity-80 w-full"
-                disabled
-              >
-                Producto sin Stock
-              </button>
-            </div>
-          )}
+                  disabled
+                >
+                  Producto sin Stock
+                </button>
+              </div>
+            )}
         </div>
       </div>
     </div>

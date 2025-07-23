@@ -8,25 +8,27 @@ import { useAuth } from './AuthContext';
 export default function CartModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   // Lógica de descuentos por volumen y porcentajes (igual que en ProductoModal)
-  const DESCUENTOS = [
-    { min: 200, porcentaje: 49.5 },
-    { min: 160, porcentaje: 44.4 },
-    { min: 100, porcentaje: 34.3 },
-    { min: 50, porcentaje: 24.2 },
-    { min: 25, porcentaje: 14.1 },
-  ];
-  function getDescuentoPorcentaje(cantidad: number) {
-    for (const tramo of DESCUENTOS) {
-      if (cantidad >= tramo.min) return tramo.porcentaje;
+  function getDescuentoPorcentajePersonalizado(item: unknown, cantidad: number) {
+    if (!item || typeof item !== 'object' || !('descuentos' in item)) return 0;
+    const itemData = item as { descuentos: { tipo: string; items: { min: number; porcentaje: number }[] } };
+
+    if (itemData.descuentos.tipo === 'general' && itemData.descuentos.items.length > 0) {
+      return itemData.descuentos.items[0].porcentaje;
+    }
+    if (itemData.descuentos.tipo === 'por_cantidad') {
+      const items = [...itemData.descuentos.items].sort((a, b) => b.min - a.min);
+      for (const d of items) {
+        if (cantidad >= d.min) return d.porcentaje;
+      }
     }
     return 0;
   }
-  function getPrecioUnitario(precioBase: number, cantidad: number) {
-    const descuento = getDescuentoPorcentaje(cantidad);
+  function getPrecioUnitario(precioBase: number, cantidad: number, item: unknown) {
+    const descuento = getDescuentoPorcentajePersonalizado(item, cantidad);
     return Math.round(precioBase * (1 - descuento / 100));
   }
   const total = cart.reduce((sum, item) => {
-    const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad);
+    const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
     return sum + precioUnitario * item.cantidad;
   }, 0);
   const router = useRouter();
@@ -51,7 +53,7 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
           <>
             <ul className="divide-y divide-gray-200 mb-4 max-h-60 overflow-y-auto">
               {cart.map(item => {
-                const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad);
+                const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
                 const totalItem = precioUnitario * item.cantidad;
                 const stock = typeof item.stock === 'number' ? item.stock : 99;
                 return (
@@ -63,7 +65,7 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
                       <div className="flex items-center gap-1 mt-1">
                         <button
                           className="px-2 py-1 bg-blue-200 rounded text-blue-800 font-bold"
-                          onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1), getPrecioUnitario(item.precioBase, Math.max(1, item.cantidad - 1)))}
+                          onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1), getPrecioUnitario(item.precioBase, Math.max(1, item.cantidad - 1), item))}
                           disabled={item.cantidad <= 1}
                         >-</button>
                         <input
@@ -75,14 +77,14 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
                             let val = parseInt(e.target.value, 10);
                             if (isNaN(val) || val < 1) val = 1;
                             if (val > stock) val = stock;
-                            updateQuantity(item.id, val, getPrecioUnitario(item.precioBase, val));
+                            updateQuantity(item.id, val, getPrecioUnitario(item.precioBase, val, item));
                           }}
                           onBlur={e => {
                             let val = parseInt(e.target.value, 10);
                             if (isNaN(val) || val < 1) val = 1;
                             if (val > stock) val = stock;
                             if (val !== item.cantidad) {
-                              updateQuantity(item.id, val, getPrecioUnitario(item.precioBase, val));
+                              updateQuantity(item.id, val, getPrecioUnitario(item.precioBase, val, item));
                             }
                           }}
                           onFocus={e => e.target.select()}
@@ -91,7 +93,7 @@ export default function CartModal({ open, onClose }: { open: boolean, onClose: (
                         />
                         <button
                           className="px-2 py-1 bg-blue-200 rounded text-blue-800 font-bold"
-                          onClick={() => updateQuantity(item.id, Math.min(stock, item.cantidad + 1), getPrecioUnitario(item.precioBase, Math.min(stock, item.cantidad + 1)))}
+                          onClick={() => updateQuantity(item.id, Math.min(stock, item.cantidad + 1), getPrecioUnitario(item.precioBase, Math.min(stock, item.cantidad + 1), item))}
                           disabled={item.cantidad >= stock}
                         >+</button>
                         <span className="ml-2 text-xs text-gray-400">Stock: {stock}</span>

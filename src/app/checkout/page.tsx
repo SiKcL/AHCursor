@@ -46,21 +46,23 @@ interface CartItem {
 }
 
 // Lógica de descuentos por volumen y porcentajes (igual que en ProductoModal y CartModal)
-const DESCUENTOS = [
-  { min: 200, porcentaje: 49.5 },
-  { min: 160, porcentaje: 44.4 },
-  { min: 100, porcentaje: 34.3 },
-  { min: 50, porcentaje: 24.2 },
-  { min: 25, porcentaje: 14.1 },
-];
-function getDescuentoPorcentaje(cantidad: number) {
-  for (const tramo of DESCUENTOS) {
-    if (cantidad >= tramo.min) return tramo.porcentaje;
+function getDescuentoPorcentajePersonalizado(item: unknown, cantidad: number) {
+  if (!item || typeof item !== 'object' || !('descuentos' in item)) return 0;
+  const descuentos = (item as { descuentos?: { tipo: string; items: { min: number; porcentaje: number }[] } }).descuentos;
+  if (!descuentos) return 0;
+  if (descuentos.tipo === 'general' && descuentos.items && descuentos.items.length > 0) {
+    return descuentos.items[0].porcentaje;
+  }
+  if (descuentos.tipo === 'por_cantidad') {
+    const items = [...(descuentos.items || [])].sort((a, b) => b.min - a.min);
+    for (const d of items) {
+      if (cantidad >= d.min) return d.porcentaje;
+    }
   }
   return 0;
 }
-function getPrecioUnitario(precioBase: number, cantidad: number) {
-  const descuento = getDescuentoPorcentaje(cantidad);
+function getPrecioUnitario(precioBase: number, cantidad: number, item: unknown) {
+  const descuento = getDescuentoPorcentajePersonalizado(item, cantidad);
   return Math.round(precioBase * (1 - descuento / 100));
 }
 
@@ -179,7 +181,7 @@ export default function CheckoutPage() {
 
   // Usar el precio unitario con descuento para el total
   const total = cart.reduce((sum, item) => {
-    const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad);
+    const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
     return sum + precioUnitario * item.cantidad;
   }, 0);
 
@@ -317,7 +319,7 @@ export default function CheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
                         <div className="text-sm text-gray-500">Cantidad: {item.cantidad}</div>
-                        <div className="text-sm text-gray-500">Precio: ${getPrecioUnitario(item.precioBase, item.cantidad).toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">Precio: ${getPrecioUnitario(item.precioBase, item.cantidad, item).toLocaleString()}</div>
                       </div>
                     </li>
                   ))}
@@ -356,7 +358,7 @@ export default function CheckoutPage() {
                       {item.imageUrl && <Image src={item.imageUrl} alt={item.nombre} width={56} height={56} className="w-14 h-14 object-cover rounded" />}
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[color:var(--primary)] truncate">{item.nombre}</div>
-                        <div className="text-sm text-gray-500">${getPrecioUnitario(item.precioBase, item.cantidad).toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">${getPrecioUnitario(item.precioBase, item.cantidad, item).toLocaleString()}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <button className="px-2 py-1 bg-gray-200 rounded text-[color:var(--primary)] font-bold" onClick={() => updateQuantity(item.id, Math.max(1, item.cantidad - 1))}>-</button>
                           <input

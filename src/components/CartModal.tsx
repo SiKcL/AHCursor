@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCart } from './CartContext';
+import { useCart, CartItem } from './CartContext';
 import { FaTimes, FaTrash } from 'react-icons/fa';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -8,24 +8,26 @@ import { useAuth } from './AuthContext';
 export default function CartModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   // Lógica de descuentos por volumen y porcentajes (igual que en ProductoModal)
-  function getDescuentoPorcentajePersonalizado(item: unknown, cantidad: number) {
-    if (!item || typeof item !== 'object' || !('descuentos' in item)) return 0;
-    const itemData = item as { descuentos: { tipo: string; items: { min: number; porcentaje: number }[] } };
-
-    if (itemData.descuentos.tipo === 'general' && itemData.descuentos.items.length > 0) {
-      return itemData.descuentos.items[0].porcentaje;
-    }
-    if (itemData.descuentos.tipo === 'por_cantidad') {
-      const items = [...itemData.descuentos.items].sort((a, b) => b.min - a.min);
-      for (const d of items) {
-        if (cantidad >= d.min) return d.porcentaje;
+  function getPrecioUnitario(precioBase: number, cantidad: number, item: CartItem) {
+    if (!item.descuentos) return precioBase;
+    
+    if (item.descuentos.tipo === 'general' && item.descuentos.items.length > 0) {
+      const porcentaje = item.descuentos.items[0]?.porcentaje;
+      if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+        return Math.round(precioBase * (1 - porcentaje / 100));
       }
     }
-    return 0;
-  }
-  function getPrecioUnitario(precioBase: number, cantidad: number, item: unknown) {
-    const descuento = getDescuentoPorcentajePersonalizado(item, cantidad);
-    return Math.round(precioBase * (1 - descuento / 100));
+    
+    if (item.descuentos.tipo === 'por_cantidad') {
+      const items = [...item.descuentos.items].sort((a, b) => b.min - a.min);
+      for (const d of items) {
+        if (cantidad >= d.min && typeof d.precio === 'number' && !isNaN(d.precio)) {
+          return d.precio;
+        }
+      }
+    }
+    
+    return precioBase;
   }
   const total = cart.reduce((sum, item) => {
     const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);

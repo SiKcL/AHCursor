@@ -15,7 +15,7 @@ interface Producto {
   imagen?: string | null;
   imageUrl?: string;
   stock: number;
-  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, porcentaje: number }[] } | null;
+  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, precio?: number; porcentaje?: number }[] } | null;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -43,16 +43,22 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
           let badge = null;
           if (producto.descuentos) {
             if (producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0) {
+              const porcentaje = producto.descuentos.items[0]?.porcentaje;
+              let precioConDescuento = producto.precio;
+              if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+                precioConDescuento = Math.round(producto.precio * (1 - porcentaje / 100));
+              }
+              const porcentajeReal = Math.round(100 - (precioConDescuento / producto.precio) * 100);
               badge = (
                 <span className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
-                  -{producto.descuentos.items[0].porcentaje}% Descuento
+                  -{porcentajeReal}% Descuento
                 </span>
               );
-            } else if (producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0) {
-              const min = Math.min(...producto.descuentos.items.map(d => d.min));
+            } else if (producto.descuentos && producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0) {
               badge = (
-                <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
-                  Descuentos desde {min} un.
+                <span className="absolute top-2 right-2 flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
+                  <Image src="/porcentaje.png" alt="%" width={12} height={12} className="w-3 h-3" />
+                  Descuento por Volumen
                 </span>
               );
             }
@@ -74,14 +80,18 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                   <div>
                     <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
                     {/* Mostrar precio original tachado si hay descuento */}
-                    {producto.descuentos && producto.descuentos.items.length > 0 ? (
+                    {producto.descuentos && producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0 ? (
+                      <p className="text-lg font-bold text-green-600 mt-1">{formatPrice(producto.precio)}</p>
+                    ) : producto.descuentos && producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0 ? (
                       <>
                         <p className="text-sm text-gray-400 line-through">{formatPrice(producto.precio)}</p>
                         <p className="text-lg font-bold text-green-600 mt-1">
                           {(() => {
-                            // Calcular el precio con descuento mínimo
-                            const minDesc = Math.min(...producto.descuentos.items.map(d => d.porcentaje));
-                            return formatPrice(Math.round(producto.precio * (1 - minDesc / 100)));
+                            const porcentaje = producto.descuentos.items[0]?.porcentaje;
+                            if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+                              return formatPrice(Math.round(producto.precio * (1 - porcentaje / 100)));
+                            }
+                            return formatPrice(producto.precio);
                           })()}
                         </p>
                       </>
@@ -93,15 +103,31 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                   {producto.stock > 0 ? (
                     <button
                       className="mt-3 w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition"
-                      onClick={() => addToCart({
-                        id: producto.id,
-                        nombre: producto.nombre,
-                        precio: producto.precio,
-                        precioBase: producto.precio,
-                        imageUrl: producto.imageUrl || producto.imagen || '',
-                        stock: producto.stock,
-                        // descuentos: producto.descuentos || null, // Quitar si CartItem no lo acepta
-                      })}
+                      onClick={() => {
+                        let precioFinal = producto.precio;
+                        
+                        if (producto.descuentos && producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0) {
+                          const porcentaje = producto.descuentos.items[0]?.porcentaje;
+                          if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+                            precioFinal = Math.round(producto.precio * (1 - porcentaje / 100));
+                          }
+                        } else if (producto.descuentos && producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0) {
+                          const precios = producto.descuentos.items.map(d => typeof d.precio === 'number' && !isNaN(d.precio) ? d.precio : null).filter((p): p is number => p !== null);
+                          if (precios.length > 0) {
+                            precioFinal = Math.min(...precios);
+                          }
+                        }
+                        
+                        addToCart({
+                          id: producto.id,
+                          nombre: producto.nombre,
+                          precio: precioFinal,
+                          precioBase: producto.precio,
+                          imageUrl: producto.imageUrl || producto.imagen || '',
+                          stock: producto.stock,
+                          descuentos: producto.descuentos || null,
+                        });
+                      }}
                     >
                       Añadir al carrito
                     </button>

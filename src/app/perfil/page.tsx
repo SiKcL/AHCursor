@@ -304,34 +304,6 @@ export default function PerfilPage() {
     }
   };
 
-  // Manejar cambio de checkbox factura en datos personales
-  const handleFacturaCheckbox = (e: ChangeEvent<HTMLInputElement>) => {
-    const checked = e.target.checked;
-    setForm((f) => ({ ...f, factura: checked }));
-    if (!checked && facturacion) {
-      // Eliminar datos de facturación
-      const token = localStorage.getItem('token');
-      fetch('/api/user', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ deleteFacturacion: true })
-      }).then(() => {
-        setFacturacion(null);
-        setFactForm({ 
-          razon_social: '', 
-          rut: '', 
-          giro: '', 
-          telefono: '', 
-          region: '', 
-          comuna: '', 
-          calle: '', 
-          numero: '', 
-          depto_oficina: '' 
-        });
-      });
-    }
-  };
-
   // Guardar datos de facturación
   const handleSaveFact = async (e: FormEvent) => {
     e.preventDefault();
@@ -538,10 +510,6 @@ export default function PerfilPage() {
                   <div>
                     <label className="block text-sm font-semibold">Teléfono</label>
                     <input name="telefono" value={form.telefono || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <input type="checkbox" name="factura" checked={!!form.factura} onChange={handleFacturaCheckbox} />
-                    <span className="text-sm">Necesito comprar con factura</span>
                   </div>
                   {error && <div className="text-red-600 text-sm">{error}</div>}
                   {msg && <div className="text-green-600 text-sm">{msg}</div>}

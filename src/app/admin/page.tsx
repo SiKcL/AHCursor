@@ -14,7 +14,7 @@ interface Producto {
   precio: number;
   imagen: string | null;
   stock: number;
-  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, porcentaje: number }[] } | null;
+  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, precio?: number; porcentaje?: number }[] } | null;
 }
 
 interface ImagenGaleria {
@@ -408,7 +408,7 @@ export default function AdminPage() {
     file: null as File | null,
     stock: 0,
     tieneDescuento: false,
-    descuentos: null as { tipo: 'general' | 'por_cantidad'; items: { min: number; porcentaje: number }[] } | null,
+    descuentos: null as { tipo: 'general' | 'por_cantidad'; items: { min: number; precio?: number; porcentaje?: number }[] } | null,
     descuentoGeneral: 0,
   });
   const [editando, setEditando] = useState(false);
@@ -609,7 +609,7 @@ export default function AdminPage() {
       stock: producto.stock ?? 0,
       tieneDescuento: !!producto.descuentos,
       descuentos: producto.descuentos ?? null,
-      descuentoGeneral: producto.descuentos?.tipo === 'general' ? producto.descuentos.items[0]?.porcentaje || 0 : 0,
+      descuentoGeneral: producto.descuentos?.tipo === 'general' ? producto.descuentos.items[0]?.precio || 0 : 0,
     });
     setEditando(true);
   }
@@ -803,19 +803,18 @@ export default function AdminPage() {
                           <span>unidades →</span>
                           <input
                             type="number"
-                            value={item.porcentaje}
+                            value={item.precio}
                             min={1}
-                            max={99}
                             onChange={e => setForm(f => ({
                               ...f,
                               descuentos: {
                                 ...f.descuentos!,
-                                items: f.descuentos!.items.map((it, i) => i === idx ? { ...it, porcentaje: Number(e.target.value) } : it)
+                                items: f.descuentos!.items.map((it, i) => i === idx ? { ...it, precio: Number(e.target.value) } : it)
                               }
                             }))}
                             className="border rounded px-2 py-1 w-24"
                           />
-                          <span>% de descuento</span>
+                          <span>precio asignado</span>
                           <button type="button" className="text-red-600 ml-2" onClick={() => setForm(f => ({
                             ...f,
                             descuentos: {
@@ -829,9 +828,9 @@ export default function AdminPage() {
                         ...f,
                         descuentos: {
                           ...f.descuentos!,
-                          items: [...(f.descuentos?.items || []), { min: 1, porcentaje: 1 }]
+                          items: [...(f.descuentos?.items || []), { min: 1, precio: 1 }]
                         }
-                      }))}>Añadir descuento</button>
+                      }))}>Añadir precio por volumen</button>
                     </div>
                   )}
                 </div>
@@ -850,16 +849,17 @@ export default function AdminPage() {
               let badge = null;
               if (producto.descuentos) {
                 if (producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0) {
+                  const porcentaje = producto.descuentos.items[0]?.porcentaje;
                   badge = (
                     <span className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
-                      -{producto.descuentos.items[0].porcentaje}% Descuento
+                      -{typeof porcentaje === 'number' && !isNaN(porcentaje) ? porcentaje : 0}% Descuento
                     </span>
                   );
                 } else if (producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0) {
-                  const min = Math.min(...producto.descuentos.items.map(d => d.min));
                   badge = (
-                    <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
-                      Descuentos desde {min} un.
+                    <span className="absolute top-2 right-2 flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow z-10">
+                      <Image src="/porcentaje.png" alt="%" width={12} height={12} className="w-3 h-3" />
+                      Descuento por Volumen
                     </span>
                   );
                 }
@@ -881,14 +881,18 @@ export default function AdminPage() {
                       <div>
                         <h3 className="text-md font-semibold text-gray-800">{producto.nombre}</h3>
                         {/* Mostrar precio original tachado si hay descuento */}
-                        {producto.descuentos && producto.descuentos.items.length > 0 ? (
+                        {producto.descuentos && producto.descuentos.tipo === 'por_cantidad' && producto.descuentos.items.length > 0 ? (
+                          <p className="text-lg font-bold text-green-600 mt-1">${producto.precio}</p>
+                        ) : producto.descuentos && producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0 ? (
                           <>
                             <p className="text-sm text-gray-400 line-through">${producto.precio}</p>
                             <p className="text-lg font-bold text-green-600 mt-1">
                               {(() => {
-                                // Calcular el precio con descuento mínimo
-                                const minDesc = Math.min(...producto.descuentos.items.map(d => d.porcentaje));
-                                return `$${Math.round(producto.precio * (1 - minDesc / 100))}`;
+                                const porcentaje = producto.descuentos.items[0]?.porcentaje;
+                                if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+                                  return `$${Math.round(producto.precio * (1 - porcentaje / 100))}`;
+                                }
+                                return `$${producto.precio}`;
                               })()}
                             </p>
                           </>

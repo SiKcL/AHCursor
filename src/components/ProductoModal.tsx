@@ -12,7 +12,7 @@ interface Producto {
   precio: number;
   imagen?: string | null;
   stock?: number;
-  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, porcentaje: number }[] } | null;
+  descuentos?: { tipo: 'general' | 'por_cantidad', items: { min: number, precio?: number; porcentaje?: number }[] } | null;
 }
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
@@ -40,23 +40,20 @@ export default function ProductoModal({ producto, onClose }: ProductoModalProps)
 
   // Lógica de descuentos personalizados
   const descuentos = productoMapeado.descuentos;
-  function getDescuentoPorcentajePersonalizado(cantidad: number) {
-    if (!descuentos) return 0;
+  function getPrecioUnitarioPersonalizado(cantidad: number) {
+    if (!descuentos) return PRECIO_BASE;
     if (descuentos.tipo === 'general' && descuentos.items.length > 0) {
-      return descuentos.items[0].porcentaje;
+      const porcentaje = descuentos.items[0].porcentaje;
+      return Math.round(PRECIO_BASE * (1 - (porcentaje ?? 0) / 100));
     }
     if (descuentos.tipo === 'por_cantidad') {
-      // Buscar el mayor min <= cantidad
       const items = [...descuentos.items].sort((a, b) => b.min - a.min);
       for (const item of items) {
-        if (cantidad >= item.min) return item.porcentaje;
+        if (cantidad >= item.min) return item.precio ?? PRECIO_BASE;
       }
+      return PRECIO_BASE;
     }
-    return 0;
-  }
-  function getPrecioUnitarioPersonalizado(cantidad: number) {
-    const descuento = getDescuentoPorcentajePersonalizado(cantidad);
-    return Math.round(PRECIO_BASE * (1 - descuento / 100));
+    return PRECIO_BASE;
   }
   const precioUnitario = getPrecioUnitarioPersonalizado(cantidad);
   const totalPagar = precioUnitario * cantidad;
@@ -74,7 +71,7 @@ export default function ProductoModal({ producto, onClose }: ProductoModalProps)
         .sort((a, b) => a.min - b.min)
         .map((item, idx) => (
           <li key={idx}>
-            Sobre {item.min} un. – <span className="font-bold">{item.porcentaje}% de descuento</span>
+            Sobre {item.min} uni. – <span className="font-bold">{formatPrice(item.precio ?? 0)}</span>
           </li>
         ));
     }
@@ -174,6 +171,7 @@ export default function ProductoModal({ producto, onClose }: ProductoModalProps)
                       imageUrl: productoMapeado.imageUrl || '',
                       cantidad,
                       stock: (productoMapeado.stock as number ?? 0),
+                      descuentos: productoMapeado.descuentos || null,
                     });
                     onClose();
                   }}

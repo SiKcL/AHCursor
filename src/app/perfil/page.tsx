@@ -82,6 +82,7 @@ interface Pedido {
   total: number;
   productos: { nombre: string; cantidad: number; precio: number }[];
   estado: string; // 'proceso', 'despachado', 'completado'
+  external_id?: string;
   region?: string;
   comuna?: string;
   calle?: string;
@@ -460,9 +461,12 @@ export default function PerfilPage() {
                   {compras.map(pedido => (
                     <div key={pedido.id} className="bg-gray-50 rounded-lg p-4 border">
                       <div className="mb-2 font-semibold">Pedido #{pedido.id} - {new Date(pedido.created_at).toLocaleString()}</div>
+                      {pedido.external_id && (
+                        <div className="mb-2 text-sm text-gray-600">ID Externo: <span className="font-mono">#{pedido.external_id}</span></div>
+                      )}
                       <div className="mb-2">Total: <span className="font-bold">${pedido.total.toLocaleString()}</span></div>
                       <div className="mb-2">
-                        <span className="font-bold">Estado:</span> {pedido.estado === 'proceso' ? 'En Proceso' : pedido.estado === 'despachado' ? 'Despachado' : pedido.estado === 'completado' ? 'Completado' : pedido.estado}
+                        <span className="font-bold">Estado:</span> {pedido.estado === 'pendiente' || pedido.estado === 'pendiente_whatsapp' ? 'Pendiente' : pedido.estado === 'proceso' ? 'En Proceso' : pedido.estado === 'despachado' ? 'Despachado' : pedido.estado === 'completado' ? 'Completado' : pedido.estado}
                       </div>
                       <div className="mb-2">
                         <span className="font-bold">Dirección de entrega:</span> {pedido.region || ''}{pedido.comuna ? ', ' + pedido.comuna : ''}{pedido.calle ? ', ' + pedido.calle : ''}{pedido.numero ? ' #' + pedido.numero : ''}{pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}

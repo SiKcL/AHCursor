@@ -109,7 +109,26 @@ export const initializeDatabase = async () => {
         estado VARCHAR(50) DEFAULT 'pendiente',
         total DECIMAL(10,2),
         detalles JSONB,
+        external_id VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Agregar columna external_id si no existe (para bases de datos existentes)
+    await client.query(`
+      ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS external_id VARCHAR(100);
+    `);
+
+    // Crear tabla de FAQs si no existe
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS faqs (
+        id SERIAL PRIMARY KEY,
+        pregunta TEXT NOT NULL,
+        respuesta TEXT NOT NULL,
+        imagen_fondo VARCHAR(500) NOT NULL,
+        orden INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 

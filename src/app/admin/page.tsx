@@ -6,6 +6,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Modal from 'react-modal';
 
+// Configurar el appElement para react-modal
+if (typeof window !== 'undefined') {
+  Modal.setAppElement(document.body);
+}
+
 // 1. Actualizar la interfaz Producto para incluir stock y descuentos
 interface Producto {
   id: number;
@@ -60,7 +65,10 @@ interface PedidoAdmin {
   estado: string;
   productos: { nombre: string; cantidad: number; precio: number }[];
   telefono_recibe?: string;
+  external_id?: string;
 }
+
+
 
 function AdminGaleria() {
   const [imagenes, setImagenes] = useState<ImagenGaleria[]>([]);
@@ -140,7 +148,316 @@ function AdminGaleria() {
               Eliminar
             </button>
           </div>
-        ))}
+         ))}
+      </div>
+    </div>
+  );
+}
+
+interface FaqItem {
+  id: number;
+  pregunta: string;
+  respuesta: string;
+  imagen_fondo: string;
+  orden: number;
+}
+
+function AdminFAQs() {
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [pregunta, setPregunta] = useState('');
+  const [respuesta, setRespuesta] = useState('');
+  const [imagenFondo, setImagenFondo] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [orden, setOrden] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [editando, setEditando] = useState<FaqItem | null>(null);
+  const [mensaje, setMensaje] = useState('');
+
+  const fetchFaqs = async () => {
+    const res = await fetch('/api/faqs');
+    const data = await res.json();
+    setFaqs(data);
+  };
+
+  useEffect(() => {
+    fetchFaqs();
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pregunta.trim() || !respuesta.trim()) {
+      setError('Pregunta y respuesta son requeridos');
+      return;
+    }
+
+    if (!editando && !file) {
+      setError('Debe seleccionar una imagen');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      let imagenFinal = imagenFondo;
+      
+      // Si hay un archivo nuevo, subirlo
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadResult = await uploadRes.json();
+        if (uploadResult.url) {
+          imagenFinal = uploadResult.url;
+        } else {
+          setError('Error al subir la imagen');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const method = editando ? 'PUT' : 'POST';
+      const body = {
+        ...(editando && { id: editando.id }),
+        pregunta: pregunta.trim(),
+        respuesta: respuesta.trim(),
+        imagen_fondo: imagenFinal,
+        orden: orden
+      };
+
+      const res = await fetch('/api/faqs', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        setMensaje(editando ? 'Pregunta actualizada con éxito' : 'Pregunta agregada con éxito');
+        setPregunta('');
+        setRespuesta('');
+        setImagenFondo('');
+        setFile(null);
+        setPreview(null);
+        setOrden(1);
+        setEditando(null);
+        fetchFaqs();
+      } else {
+        setError('Error al guardar la pregunta');
+      }
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (faq: FaqItem) => {
+    setPregunta(faq.pregunta);
+    setRespuesta(faq.respuesta);
+    setImagenFondo(faq.imagen_fondo);
+    setOrden(faq.orden);
+    setEditando(faq);
+    setFile(null);
+    setPreview(null);
+    setError('');
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar esta pregunta frecuente?')) return;
+    
+    try {
+      const res = await fetch(`/api/faqs?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMensaje('Pregunta eliminada con éxito');
+        fetchFaqs();
+      } else {
+        setError('Error al eliminar la pregunta');
+      }
+    } catch {
+      setError('Error de conexión');
+    }
+  };
+
+  const cancelarEdicion = () => {
+    setPregunta('');
+    setRespuesta('');
+    setImagenFondo('');
+    setFile(null);
+    setPreview(null);
+    setOrden(1);
+    setEditando(null);
+    setError('');
+  };
+
+  useEffect(() => {
+    if (mensaje) {
+      const timer = setTimeout(() => setMensaje(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [mensaje]);
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-2xl font-bold mb-4 border-b pb-2">Administrar Preguntas Frecuentes</h2>
+      
+      {mensaje && (
+        <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-center font-semibold">
+          {mensaje}
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-center font-semibold">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Pregunta:</label>
+            <input
+              type="text"
+              value={pregunta}
+              onChange={(e) => setPregunta(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              placeholder="Ej: ¿Tengo que desinfectar los productos?"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Orden de visualización:</label>
+            <input
+              type="number"
+              value={orden}
+              onChange={(e) => setOrden(Number(e.target.value))}
+              className="w-full border rounded px-3 py-2"
+              min="1"
+              max={faqs.length + 1}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {editando 
+                ? `Actual: ${editando.orden}. Los demás se reorganizarán automáticamente.`
+                : `Máximo: ${faqs.length + 1}. Los existentes se reorganizarán automáticamente.`
+              }
+            </p>
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <label className="block text-sm font-medium mb-1">Respuesta:</label>
+          <textarea
+            value={respuesta}
+            onChange={(e) => setRespuesta(e.target.value)}
+            className="w-full border rounded px-3 py-2 h-20"
+            placeholder="Escribe la respuesta aquí..."
+            required
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium mb-1">Imagen de fondo:</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          {preview && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
+              <img src={preview} alt="Vista previa" className="w-32 h-20 object-cover rounded border" />
+            </div>
+          )}
+          {editando && !file && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
+              <img src={imagenFondo} alt="Imagen actual" className="w-32 h-20 object-cover rounded border" />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Guardando...' : editando ? 'Actualizar' : 'Agregar'} Pregunta
+          </button>
+          {editando && (
+            <button
+              type="button"
+              onClick={cancelarEdicion}
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Preguntas existentes:</h3>
+        {faqs.length === 0 ? (
+          <p className="text-gray-500">No hay preguntas frecuentes registradas.</p>
+        ) : (
+          faqs.map((faq) => (
+            <div key={faq.id} className="border rounded-lg p-4 bg-gray-50">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                      Orden: {faq.orden}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold text-lg mb-2">{faq.pregunta}</h4>
+                  <p className="text-gray-700 mb-2">{faq.respuesta}</p>
+                  <div className="flex items-center gap-4">
+                    <img src={faq.imagen_fondo} alt="Imagen FAQ" className="w-20 h-12 object-cover rounded border" />
+                    <p className="text-sm text-gray-500">
+                      <strong>Imagen:</strong> {faq.imagen_fondo}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleEdit(faq)}
+                    className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(faq.id)}
+                    className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -353,41 +670,80 @@ function AdminRedes() {
                   Eliminar
                 </button>
               </div>
-            ))}
+             ))}
           </div>
         )}
       </div>
+
+
     </div>
   );
 }
 
 function descargarPDF(pedidos: PedidoAdmin[], titulo: string) {
-  const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text(titulo, 14, 16);
+  const doc = new jsPDF('landscape'); // Cambiar a orientación horizontal para mejor distribución
+  
+  // Configurar fuente y título
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text(titulo, 14, 20);
+  
+  // Configurar tabla con mejor formato
   autoTable(doc, {
-    startY: 22,
+    startY: 30,
     head: [[
-      'ID', 'Cliente', 'Teléfono', 'Dirección', 'Productos', 'Total', 'Fecha', 'Estado'
+      'ID', 'ID Externo', 'Cliente', 'Teléfono', 'Dirección', 'Productos', 'Total', 'Fecha', 'Estado'
     ]],
     body: pedidos.map(p => [
-      p.id,
+      p.id.toString(),
+      p.external_id || '-',
       `${p.usuario_nombre} ${p.usuario_apellido}`,
       p.telefono_recibe || '-',
       p.direccion,
-      p.productos.map(prod => `${prod.nombre} x${prod.cantidad} ($${prod.precio})`).join('\n'),
+      p.productos.map(prod => `${prod.nombre} x${prod.cantidad} ($${prod.precio})`).join(' | '),
       `$${p.total}`,
-      new Date(p.created_at).toLocaleString(),
+      new Date(p.created_at).toLocaleDateString('es-CL') + '\n' + new Date(p.created_at).toLocaleTimeString('es-CL'),
       p.estado.charAt(0).toUpperCase() + p.estado.slice(1)
     ]),
-    styles: { fontSize: 10, cellPadding: 2 },
-    headStyles: { fillColor: [44, 62, 80] },
-    bodyStyles: { valign: 'top' },
-    columnStyles: {
-      4: { cellWidth: 50 }, // productos
-      3: { cellWidth: 40 }, // dirección
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 3,
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1
     },
+    headStyles: { 
+      fillColor: [44, 62, 80],
+      textColor: [255, 255, 255],
+      fontSize: 10,
+      fontStyle: 'bold'
+    },
+    bodyStyles: { 
+      valign: 'middle',
+      halign: 'left'
+    },
+    columnStyles: {
+      0: { cellWidth: 12, halign: 'center' }, // ID
+      1: { cellWidth: 30, halign: 'center' }, // ID Externo
+      2: { cellWidth: 35, halign: 'left' },   // Cliente
+      3: { cellWidth: 22, halign: 'center' }, // Teléfono
+      4: { cellWidth: 40, halign: 'left' },   // Dirección
+      5: { cellWidth: 50, halign: 'left' },   // Productos
+      6: { cellWidth: 22, halign: 'center' }, // Total
+      7: { cellWidth: 30, halign: 'center' }, // Fecha
+      8: { cellWidth: 20, halign: 'center' }  // Estado
+    },
+    margin: { top: 30, right: 14, bottom: 20, left: 14 },
+    didDrawPage: function () {
+      // Agregar numeración de páginas
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+      }
+    }
   });
+  
   doc.save(`${titulo.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
@@ -397,6 +753,8 @@ export default function AdminPage() {
   const [contrasena, setContrasena] = useState("");
   const [error, setError] = useState("");
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
+  const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [cargando, setCargando] = useState(false);
   // 2. Agregar stock al estado del formulario
   const [form, setForm] = useState({
@@ -413,6 +771,7 @@ export default function AdminPage() {
   });
   const [editando, setEditando] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [mensajeOk, setMensajeOk] = useState("");
 
   // Estado para usuarios
   const [usuarios, setUsuarios] = useState<UsuarioResumen[]>([]);
@@ -429,6 +788,54 @@ export default function AdminPage() {
   const [modalCrearAdmin, setModalCrearAdmin] = useState(false);
   const [nuevoAdmin, setNuevoAdmin] = useState({ nombre: '', apellido: '', email: '', password: '' });
   const [mensajeAdmin, setMensajeAdmin] = useState('');
+
+  // Estados para modales de pedidos
+  const [modalCrearPedido, setModalCrearPedido] = useState(false);
+  const [modalEditarPedido, setModalEditarPedido] = useState(false);
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<PedidoAdmin | null>(null);
+  const [formPedido, setFormPedido] = useState({
+    nombre: '',
+    apellido: '',
+    telefono: '',
+    direccion: '',
+    external_id: '',
+    productos: [] as { id: number; nombre: string; cantidad: number; precio: number }[]
+  });
+
+  const [formPedidoNuevo, setFormPedidoNuevo] = useState({
+    nombre: '',
+    apellido: '',
+    telefono: '',
+    direccion: '',
+    productos: [] as { id: number; nombre: string; cantidad: number; precio: number }[]
+  });
+
+  // Función para calcular precio con descuentos
+  const calcularPrecioConDescuento = (producto: Producto, cantidad: number): number => {
+    if (!producto.descuentos) {
+      return producto.precio;
+    }
+    
+    if (producto.descuentos.tipo === 'general') {
+      // Descuento general (porcentaje)
+      const descuentoGeneral = producto.descuentos.items[0]?.porcentaje || 0;
+      return producto.precio * (1 - descuentoGeneral / 100);
+    } else if (producto.descuentos.tipo === 'por_cantidad') {
+      // Descuento por volumen
+      const descuentosOrdenados = [...producto.descuentos.items].sort((a, b) => b.min - a.min);
+      
+      for (const descuento of descuentosOrdenados) {
+        if (cantidad >= descuento.min && descuento.precio !== undefined) {
+          return descuento.precio;
+        }
+      }
+    }
+    
+    return producto.precio;
+  };
+
+
+
   interface Facturacion {
     razon_social: string;
     rut: string;
@@ -448,13 +855,35 @@ export default function AdminPage() {
     if (autenticado) cargarUsuarios();
   }, [autenticado]);
 
+  // Mensajes efímeros de éxito
+  useEffect(() => {
+    if (mensajeOk) {
+      const t = setTimeout(() => setMensajeOk(''), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [mensajeOk]);
+
   async function cargarProductos() {
     setCargando(true);
     const res = await fetch("/api/productos");
     const data = await res.json();
     setProductos(data);
+    setProductosFiltrados(data);
     setCargando(false);
   }
+
+  // Filtrar productos cuando cambie el término de búsqueda
+  useEffect(() => {
+    if (terminoBusqueda.trim() === '') {
+      setProductosFiltrados(productos);
+    } else {
+      const filtrados = productos.filter(producto =>
+        producto.nombre.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+        producto.descripcion?.toLowerCase().includes(terminoBusqueda.toLowerCase())
+      );
+      setProductosFiltrados(filtrados);
+    }
+  }, [terminoBusqueda, productos]);
 
   async function cargarUsuarios() {
     setCargandoUsuarios(true);
@@ -695,6 +1124,7 @@ export default function AdminPage() {
       {/* Contenedor de Productos */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">Administrar Productos</h2>
+        
         {mensaje && (
           <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-center font-semibold animate-fade-in">
             {mensaje}
@@ -823,7 +1253,7 @@ export default function AdminPage() {
                             }
                           }))}>Eliminar</button>
                         </div>
-                      ))}
+                       ))}
                       <button type="button" className="bg-blue-600 text-white px-3 py-1 rounded mt-2" onClick={() => setForm(f => ({
                         ...f,
                         descuentos: {
@@ -842,10 +1272,46 @@ export default function AdminPage() {
             <button type="button" className="ml-2 px-4 py-2 rounded border" onClick={() => { setEditando(false); setForm({ id: 0, nombre: "", descripcion: "", precio: 0, imagen: "", file: null, stock: 0, tieneDescuento: false, descuentos: null, descuentoGeneral: 0 }); }}>Cancelar</button>
           )}
         </form>
+        
+        {/* Barra de búsqueda */}
+        <div className="mb-6">
+          <div className="max-w-md">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar productos por nombre"
+                value={terminoBusqueda}
+                onChange={(e) => setTerminoBusqueda(e.target.value)}
+                className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm"
+              />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              {terminoBusqueda && (
+                <button
+                  onClick={() => setTerminoBusqueda('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {terminoBusqueda && (
+              <p className="mt-2 text-sm text-gray-600">
+                {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        </div>
+        
         <h3 className="text-lg font-semibold mb-4">Productos</h3>
-        {cargando ? <p>Cargando...</p> : (
+        {cargando ? <p>Cargando...</p> : productosFiltrados.length > 0 ? (
           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-            {productos.map(producto => {
+            {productosFiltrados.map(producto => {
               let badge = null;
               if (producto.descuentos) {
                 if (producto.descuentos.tipo === 'general' && producto.descuentos.items.length > 0) {
@@ -911,12 +1377,28 @@ export default function AdminPage() {
               );
             })}
           </div>
+        ) : terminoBusqueda ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No se encontraron productos que coincidan con &quot;{terminoBusqueda}&quot;</p>
+            <button
+              onClick={() => setTerminoBusqueda('')}
+              className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Ver todos los productos
+            </button>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No hay productos registrados.</p>
+          </div>
         )}
       </div>
       {/* Contenedor de Galería */}
       <AdminGaleria />
       {/* Contenedor de Redes Sociales */}
       <AdminRedes />
+      {/* Contenedor de Preguntas Frecuentes */}
+      <AdminFAQs />
       {/* Tabla de usuarios registrados */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">Usuarios registrados</h2>
@@ -988,7 +1470,7 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                 ))}
               </tbody>
             </table>
           </div>
@@ -1101,7 +1583,7 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                 ))}
               </tbody>
             </table>
           </div>
@@ -1110,45 +1592,60 @@ export default function AdminPage() {
       {/* Sección de Pedidos NO completados */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">Pedidos de Clientes</h2>
-        <button className="mb-4 bg-blue-700 text-white px-4 py-2 rounded font-semibold hover:bg-blue-800 transition" onClick={() => descargarPDF(pedidosNoCompletados, 'Pedidos de Clientes')}>Descargar PDF</button>
+        <div className="flex gap-2 mb-4">
+          <button className="bg-blue-700 text-white px-4 py-2 rounded font-semibold hover:bg-blue-800 transition" onClick={() => descargarPDF(pedidosNoCompletados, 'Pedidos de Clientes')}>Descargar PDF</button>
+          <button className="bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800 transition" onClick={() => {
+            setFormPedidoNuevo({
+              nombre: '',
+              apellido: '',
+              telefono: '',
+              direccion: '',
+              productos: []
+            });
+            setModalCrearPedido(true);
+          }}>Crear Pedido Personalizado</button>
+        </div>
         {cargandoPedidos ? (
           <div>Cargando pedidos...</div>
         ) : pedidosNoCompletados.length === 0 ? (
           <div>No hay pedidos registrados.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border">
+            <table className="min-w-full border table-fixed text-xs">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">ID</th>
-                  <th className="px-2 py-1 border">Cliente</th>
-                  <th className="px-2 py-1 border">Teléfono</th>
-                  <th className="px-2 py-1 border">Dirección</th>
-                  <th className="px-2 py-1 border">Productos</th>
-                  <th className="px-2 py-1 border">Total</th>
-                  <th className="px-2 py-1 border">Fecha</th>
-                  <th className="px-2 py-1 border">Estado</th>
+                  <th className="px-1 py-1 border w-12">ID</th>
+                  <th className="px-1 py-1 border w-36">ID Externo</th>
+                  <th className="px-1 py-1 border w-32">Cliente</th>
+                  <th className="px-1 py-1 border w-24">Teléfono</th>
+                  <th className="px-1 py-1 border w-48">Dirección</th>
+                  <th className="px-1 py-1 border w-56">Productos</th>
+                  <th className="px-1 py-1 border w-20">Total</th>
+                  <th className="px-1 py-1 border w-36">Fecha</th>
+                  <th className="px-1 py-1 border w-28">Estado</th>
+                  <th className="px-1 py-1 border w-24">EDITAR</th>
                 </tr>
               </thead>
               <tbody>
                 {pedidosNoCompletados.map(pedido => (
                   <tr key={pedido.id}>
-                    <td className="border px-2 py-1">{pedido.id}</td>
-                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
-                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
-                    <td className="border px-2 py-1">{pedido.direccion}</td>
-                    <td className="border px-2 py-1">
-                      <ul className="text-xs">
+                    <td className="border px-1 py-1 align-top text-center">{pedido.id}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words text-center">{pedido.external_id || '-'}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-1 py-1 align-top text-center">{pedido.telefono_recibe || '-'}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">{pedido.direccion}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">
+                      <ul className="text-xs space-y-0.5">
                         {pedido.productos.map((prod, idx) => (
                           <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
                         ))}
                       </ul>
                     </td>
-                    <td className="border px-2 py-1">${pedido.total}</td>
-                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
-                    <td className="border px-2 py-1">
+                    <td className="border px-1 py-1 align-top text-center">${pedido.total}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words text-center">{new Date(pedido.created_at).toLocaleDateString('es-CL')}<br/>{new Date(pedido.created_at).toLocaleTimeString('es-CL')}</td>
+                    <td className="border px-1 py-1 align-top text-center">
                       <select
-                        value={pedido.estado}
+                        value={pedido.estado === 'pendiente_whatsapp' ? 'pendiente' : pedido.estado}
                         onChange={async (e) => {
                           const nuevoEstado = e.target.value;
                           const token = localStorage.getItem('token');
@@ -1162,16 +1659,44 @@ export default function AdminPage() {
                           });
                           cargarPedidos();
                         }}
-                        className="border rounded px-2 py-1"
+                        className="border rounded px-1 py-0.5 text-xs w-full"
                       >
+                        <option value="pendiente">Pendiente</option>
                         <option value="proceso">En Proceso</option>
                         <option value="despachado">Despachado</option>
                         <option value="completado">Completado</option>
                         <option value="cancelado">Cancelado</option>
                       </select>
                     </td>
+                    <td className="border px-1 py-1 align-top text-center">
+                      <button
+                                                 onClick={() => {
+                           setPedidoSeleccionado(pedido);
+                           const productosMapeados = pedido.productos.map((prod: { producto_id?: number; id?: number; nombre: string; cantidad: number; precio: number }) => ({
+                             id: prod.producto_id || prod.id || 0,
+                             nombre: prod.nombre,
+                             cantidad: prod.cantidad,
+                             precio: prod.precio
+                           }));
+                           console.log('Pedido seleccionado:', pedido);
+                           console.log('external_id del pedido:', pedido.external_id);
+                           setFormPedido({
+                             nombre: pedido.usuario_nombre,
+                             apellido: pedido.usuario_apellido,
+                             telefono: pedido.telefono_recibe || '',
+                             direccion: pedido.direccion,
+                             external_id: pedido.external_id || '',
+                             productos: productosMapeados
+                           });
+                           setModalEditarPedido(true);
+                         }}
+                        className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs"
+                      >
+                        Editar Pedido
+                      </button>
+                    </td>
                   </tr>
-                ))}
+                 ))}
               </tbody>
             </table>
           </div>
@@ -1208,38 +1733,40 @@ export default function AdminPage() {
           <div>No hay pedidos completados.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border">
+            <table className="min-w-full border table-fixed text-xs">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">ID</th>
-                  <th className="px-2 py-1 border">Cliente</th>
-                  <th className="px-2 py-1 border">Teléfono</th>
-                  <th className="px-2 py-1 border">Dirección</th>
-                  <th className="px-2 py-1 border">Productos</th>
-                  <th className="px-2 py-1 border">Total</th>
-                  <th className="px-2 py-1 border">Fecha</th>
-                  <th className="px-2 py-1 border">Estado</th>
+                  <th className="px-1 py-1 border w-12">ID</th>
+                  <th className="px-1 py-1 border w-36">ID Externo</th>
+                  <th className="px-1 py-1 border w-32">Cliente</th>
+                  <th className="px-1 py-1 border w-24">Teléfono</th>
+                  <th className="px-1 py-1 border w-48">Dirección</th>
+                  <th className="px-1 py-1 border w-56">Productos</th>
+                  <th className="px-1 py-1 border w-20">Total</th>
+                  <th className="px-1 py-1 border w-36">Fecha</th>
+                  <th className="px-1 py-1 border w-28">Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {pedidosCompletados.map(pedido => (
                   <tr key={pedido.id}>
-                    <td className="border px-2 py-1">{pedido.id}</td>
-                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
-                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
-                    <td className="border px-2 py-1">{pedido.direccion}</td>
-                    <td className="border px-2 py-1">
-                      <ul className="text-xs">
+                    <td className="border px-1 py-1 align-top text-center">{pedido.id}</td>
+                    <td className="border px-1 py-1 align-top text-center">{pedido.external_id || '-'}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-1 py-1 align-top text-center">{pedido.telefono_recibe || '-'}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">{pedido.direccion}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words">
+                      <ul className="text-xs space-y-0.5">
                         {pedido.productos.map((prod, idx) => (
                           <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
                         ))}
                       </ul>
                     </td>
-                    <td className="border px-2 py-1">${pedido.total}</td>
-                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
-                    <td className="border px-2 py-1">Completado</td>
+                    <td className="border px-1 py-1 align-top text-center">${pedido.total}</td>
+                    <td className="border px-1 py-1 align-top whitespace-normal break-words text-center">{new Date(pedido.created_at).toLocaleDateString('es-CL')}<br/>{new Date(pedido.created_at).toLocaleTimeString('es-CL')}</td>
+                    <td className="border px-1 py-1 align-top text-center">Completado</td>
                   </tr>
-                ))}
+                 ))}
               </tbody>
             </table>
           </div>
@@ -1276,38 +1803,40 @@ export default function AdminPage() {
           <div>No hay pedidos cancelados.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border">
+            <table className="min-w-full border table-fixed text-xs">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">ID</th>
-                  <th className="px-2 py-1 border">Cliente</th>
-                  <th className="px-2 py-1 border">Teléfono</th>
-                  <th className="px-2 py-1 border">Dirección</th>
-                  <th className="px-2 py-1 border">Productos</th>
-                  <th className="px-2 py-1 border">Total</th>
-                  <th className="px-2 py-1 border">Fecha</th>
-                  <th className="px-2 py-1 border">Estado</th>
+                  <th className="px-1 py-1 border w-12">ID</th>
+                  <th className="px-1 py-1 border w-36">ID Externo</th>
+                  <th className="px-1 py-1 border w-32">Cliente</th>
+                  <th className="px-1 py-1 border w-24">Teléfono</th>
+                  <th className="px-1 py-1 border w-48">Dirección</th>
+                  <th className="px-1 py-1 border w-56">Productos</th>
+                  <th className="px-1 py-1 border w-20">Total</th>
+                  <th className="px-1 py-1 border w-36">Fecha</th>
+                  <th className="px-1 py-1 border w-28">Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {pedidosCancelados.map(pedido => (
                   <tr key={pedido.id}>
-                    <td className="border px-2 py-1">{pedido.id}</td>
-                    <td className="border px-2 py-1">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
-                    <td className="border px-2 py-1">{pedido.telefono_recibe || '-'}</td>
-                    <td className="border px-2 py-1">{pedido.direccion}</td>
-                    <td className="border px-2 py-1">
-                      <ul className="text-xs">
+                    <td className="border px-1 py-1 align-top text-center">{pedido.id}</td>
+                    <td className="border px-1 py-1 align-top text-center">{pedido.external_id || '-'}</td>
+                    <td className="border px-1 py-1 align-top">{pedido.usuario_nombre} {pedido.usuario_apellido}</td>
+                    <td className="border px-1 py-1 align-top text-center">{pedido.telefono_recibe || '-'}</td>
+                    <td className="border px-1 py-1 align-top">{pedido.direccion}</td>
+                    <td className="border px-1 py-1 align-top">
+                      <ul className="text-xs space-y-0.5">
                         {pedido.productos.map((prod, idx) => (
                           <li key={idx}>{prod.nombre} x{prod.cantidad} (${prod.precio})</li>
                         ))}
                       </ul>
                     </td>
-                    <td className="border px-2 py-1">${pedido.total}</td>
-                    <td className="border px-2 py-1">{new Date(pedido.created_at).toLocaleString()}</td>
-                    <td className="border px-2 py-1">Cancelado</td>
+                    <td className="border px-1 py-1 align-top text-center">${pedido.total}</td>
+                    <td className="border px-1 py-1 align-top text-center">{new Date(pedido.created_at).toLocaleDateString('es-CL')}<br/>{new Date(pedido.created_at).toLocaleTimeString('es-CL')}</td>
+                    <td className="border px-1 py-1 align-top text-center">Cancelado</td>
                   </tr>
-                ))}
+                 ))}
               </tbody>
             </table>
           </div>
@@ -1349,13 +1878,13 @@ export default function AdminPage() {
                                 <li key={i} className="mb-1">
                                   {prod.nombre} x{prod.cantidad} <span className="text-gray-500">(${prod.precio} c/u)</span>
                                 </li>
-                              ))}
+                               ))}
                             </ul>
                           </td>
                         </tr>
                       ) : null}
                     </React.Fragment>
-                  ))}
+                   ))}
                 </tbody>
               </table>
             )}
@@ -1385,6 +1914,484 @@ export default function AdminPage() {
         ) : <div>No hay datos de facturación.</div>}
         <button className="mt-6 text-blue-700 underline" onClick={() => setModalFactura({open: false, data: null})}>Cerrar</button>
       </Modal>
+
+      {/* Modal para Crear Pedido Personalizado */}
+      <Modal
+        isOpen={modalCrearPedido}
+        onRequestClose={() => setModalCrearPedido(false)}
+        className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
+        overlayClassName="fixed inset-0"
+      >
+        <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto border border-gray-100">
+          <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={() => setModalCrearPedido(false)}>✕</button>
+          <h3 className="text-xl font-bold mb-4">Crear Pedido Personalizado</h3>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Nombre Cliente</label>
+                <input
+                  type="text"
+                  value={formPedidoNuevo.nombre}
+                  onChange={(e) => setFormPedidoNuevo({...formPedidoNuevo, nombre: e.target.value})}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Nombre del cliente"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Apellido Cliente</label>
+                <input
+                  type="text"
+                  value={formPedidoNuevo.apellido}
+                  onChange={(e) => setFormPedidoNuevo({...formPedidoNuevo, apellido: e.target.value})}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Apellido del cliente"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Teléfono</label>
+              <input
+                type="tel"
+                value={formPedidoNuevo.telefono}
+                onChange={(e) => setFormPedidoNuevo({...formPedidoNuevo, telefono: e.target.value})}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Teléfono del cliente"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Dirección</label>
+              <textarea
+                value={formPedidoNuevo.direccion}
+                onChange={(e) => setFormPedidoNuevo({...formPedidoNuevo, direccion: e.target.value})}
+                className="w-full border rounded px-3 py-2"
+                rows={3}
+                placeholder="Dirección completa del cliente"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Productos Disponibles</label>
+              <div className="border rounded p-3 max-h-60 overflow-y-auto">
+                {productos.filter(p => p.stock > 0).map(producto => (
+                  <div key={producto.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                    <div className="flex-1">
+                      <span className="font-medium">{producto.nombre}</span>
+                      <span className="text-gray-600 ml-2">- ${producto.precio} (Stock: {producto.stock})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const existing = formPedidoNuevo.productos.find(p => p.id === producto.id);
+                          if (existing) {
+                            setFormPedidoNuevo({
+                              ...formPedidoNuevo,
+                              productos: formPedidoNuevo.productos.map(p => 
+                                p.id === producto.id 
+                                  ? {...p, cantidad: Math.min(p.cantidad + 1, producto.stock), precio: calcularPrecioConDescuento(producto, Math.min(p.cantidad + 1, producto.stock))}
+                                  : p
+                              )
+                            });
+                          } else {
+                            setFormPedidoNuevo({
+                              ...formPedidoNuevo,
+                              productos: [...formPedidoNuevo.productos, {
+                                id: producto.id,
+                                nombre: producto.nombre,
+                                cantidad: 1,
+                                precio: calcularPrecioConDescuento(producto, 1)
+                              }]
+                            });
+                          }
+                        }}
+                        className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                      >
+                        +
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        max={producto.stock}
+                        value={formPedidoNuevo.productos.find(p => p.id === producto.id)?.cantidad || 0}
+                        onChange={(e) => {
+                          const cantidad = Math.max(0, Math.min(producto.stock, Number(e.target.value) || 0));
+                          const existing = formPedidoNuevo.productos.find(p => p.id === producto.id);
+                          if (cantidad > 0) {
+                            if (existing) {
+                              setFormPedidoNuevo(prev => ({
+                                ...prev,
+                                productos: prev.productos.map(p => 
+                                  p.id === producto.id 
+                                    ? { ...p, cantidad, precio: calcularPrecioConDescuento(producto, cantidad) }
+                                    : p
+                                )
+                              }));
+                            } else {
+                              setFormPedidoNuevo(prev => ({
+                                ...prev,
+                                productos: [...prev.productos, {
+                                  id: producto.id,
+                                  nombre: producto.nombre,
+                                  cantidad,
+                                  precio: calcularPrecioConDescuento(producto, cantidad)
+                                }]
+                              }));
+                            }
+                          } else {
+                            setFormPedidoNuevo(prev => ({
+                              ...prev,
+                              productos: prev.productos.filter(p => p.id !== producto.id)
+                            }));
+                          }
+                        }}
+                        className="w-16 px-2 py-1 text-center border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() => {
+                          const existing = formPedidoNuevo.productos.find(p => p.id === producto.id);
+                          if (existing && existing.cantidad > 1) {
+                            setFormPedidoNuevo({
+                              ...formPedidoNuevo,
+                              productos: formPedidoNuevo.productos.map(p => 
+                                p.id === producto.id 
+                                  ? {...p, cantidad: p.cantidad - 1, precio: calcularPrecioConDescuento(producto, p.cantidad - 1)}
+                                  : p
+                              )
+                            });
+                          } else if (existing) {
+                            setFormPedidoNuevo({
+                              ...formPedidoNuevo,
+                              productos: formPedidoNuevo.productos.filter(p => p.id !== producto.id)
+                            });
+                          }
+                        }}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+                   ))}
+              </div>
+            </div>
+            
+            {formPedidoNuevo.productos.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Productos Seleccionados</label>
+                <div className="border rounded p-3">
+                  {formPedidoNuevo.productos.map(prod => (
+                    <div key={prod.id} className="flex justify-between py-1">
+                      <span>{prod.nombre} x{prod.cantidad}</span>
+                      <span>${(prod.precio * prod.cantidad).toFixed(2)}</span>
+                    </div>
+                   ))}
+                  <div className="border-t pt-2 mt-2 font-bold">
+                    Total: ${formPedidoNuevo.productos.reduce((sum, prod) => sum + (prod.precio * prod.cantidad), 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={async () => {
+                if (!formPedidoNuevo.nombre || !formPedidoNuevo.apellido || !formPedidoNuevo.telefono || !formPedidoNuevo.direccion || formPedidoNuevo.productos.length === 0) {
+                  alert('Por favor completa todos los campos y selecciona al menos un producto');
+                  return;
+                }
+                
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/pedidos', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify({
+                    nombre: formPedidoNuevo.nombre,
+                    apellido: formPedidoNuevo.apellido,
+                    telefono: formPedidoNuevo.telefono,
+                    direccion: formPedidoNuevo.direccion,
+                    productos: formPedidoNuevo.productos,
+                    estado: 'pendiente'
+                  })
+                });
+                
+                if (response.ok) {
+                  setModalCrearPedido(false);
+                  setFormPedidoNuevo({ nombre: '', apellido: '', telefono: '', direccion: '', productos: [] });
+                  cargarPedidos();
+                  alert('Pedido creado exitosamente');
+                } else {
+                  alert('Error al crear el pedido');
+                }
+              }}
+              className="bg-green-700 text-white px-4 py-2 rounded font-semibold hover:bg-green-800"
+            >
+              Crear Pedido
+            </button>
+            <button
+              onClick={() => setModalCrearPedido(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded font-semibold hover:bg-gray-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal para Editar Pedido */}
+      <Modal
+        isOpen={modalEditarPedido}
+        onRequestClose={() => setModalEditarPedido(false)}
+        className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
+        overlayClassName="fixed inset-0"
+      >
+        <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto border border-gray-100">
+          <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={() => setModalEditarPedido(false)}>✕</button>
+          <h3 className="text-xl font-bold mb-4">Editar Pedido #{pedidoSeleccionado?.id}</h3>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Nombre Cliente</label>
+                <input
+                  type="text"
+                  value={formPedido.nombre}
+                  onChange={(e) => setFormPedido({...formPedido, nombre: e.target.value})}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Apellido Cliente</label>
+                <input
+                  type="text"
+                  value={formPedido.apellido}
+                  onChange={(e) => setFormPedido({...formPedido, apellido: e.target.value})}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Teléfono</label>
+              <input
+                type="tel"
+                value={formPedido.telefono}
+                onChange={(e) => setFormPedido({...formPedido, telefono: e.target.value})}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Dirección</label>
+              <textarea
+                value={formPedido.direccion}
+                onChange={(e) => setFormPedido({...formPedido, direccion: e.target.value})}
+                className="w-full border rounded px-3 py-2"
+                rows={3}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">ID Externo (WhatsApp)</label>
+              <input
+                type="text"
+                value={formPedido.external_id}
+                onChange={(e) => setFormPedido({...formPedido, external_id: e.target.value})}
+                className="w-full border rounded px-3 py-2"
+                placeholder="ID generado por WhatsApp (opcional)"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Productos Disponibles</label>
+              <div className="border rounded p-3 max-h-60 overflow-y-auto">
+                                 {productos.filter(p => {
+                   const cantidadEnPedido = pedidoSeleccionado?.productos?.find((pp: { producto_id?: number; id?: number; cantidad: number }) => pp.producto_id === p.id || pp.id === p.id)?.cantidad || 0;
+                   const stockDisponible = p.stock + cantidadEnPedido;
+                   return stockDisponible > 0;
+                 }).map(producto => {
+                  const cantidadEnPedido = pedidoSeleccionado?.productos?.find((pp: { producto_id?: number; id?: number; cantidad: number }) => pp.producto_id === producto.id || pp.id === producto.id)?.cantidad || 0;
+                  const stockDisponible = producto.stock + cantidadEnPedido;
+                  return (
+                    <div key={producto.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                      <div className="flex-1">
+                        <span className="font-medium">{producto.nombre}</span>
+                        <span className="text-gray-600 ml-2">- ${producto.precio} (Stock: {stockDisponible})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const existing = formPedido.productos.find(p => p.id === producto.id);
+                            if (existing) {
+                              const nuevaCantidad = Math.min(existing.cantidad + 1, stockDisponible);
+                              setFormPedido({
+                                ...formPedido,
+                                productos: formPedido.productos.map(p => 
+                                  p.id === producto.id 
+                                    ? {...p, cantidad: nuevaCantidad, precio: calcularPrecioConDescuento(producto, nuevaCantidad)}
+                                    : p
+                                )
+                              });
+                            } else {
+                              setFormPedido({
+                                ...formPedido,
+                                productos: [...formPedido.productos, {
+                                  id: producto.id,
+                                  nombre: producto.nombre,
+                                  cantidad: 1,
+                                  precio: calcularPrecioConDescuento(producto, 1)
+                                }]
+                              });
+                            }
+                          }}
+                          className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 font-bold"
+                        >
+                          +
+                        </button>
+                                                 <input
+                          type="number"
+                          min="0"
+                          max={stockDisponible}
+                          value={formPedido.productos.find(p => p.id === producto.id)?.cantidad || 0}
+                          onChange={(e) => {
+                            const cantidad = Math.max(0, Math.min(stockDisponible, Number(e.target.value) || 0));
+                            const existing = formPedido.productos.find(p => p.id === producto.id);
+                            if (cantidad > 0) {
+                              if (existing) {
+                                setFormPedido(prev => ({
+                                  ...prev,
+                                  productos: prev.productos.map(p => 
+                                    p.id === producto.id 
+                                      ? { ...p, cantidad, precio: calcularPrecioConDescuento(producto, cantidad) }
+                                      : p
+                                  )
+                                }));
+                              } else {
+                                setFormPedido(prev => ({
+                                  ...prev,
+                                  productos: [...prev.productos, {
+                                    id: producto.id,
+                                    nombre: producto.nombre,
+                                    cantidad,
+                                    precio: calcularPrecioConDescuento(producto, cantidad)
+                                  }]
+                                }));
+                              }
+                            } else {
+                              setFormPedido(prev => ({
+                                ...prev,
+                                productos: prev.productos.filter(p => p.id !== producto.id)
+                              }));
+                            }
+                          }}
+                          className="w-16 px-2 py-1 text-center border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                        />
+                        <button
+                          onClick={() => {
+                            const existing = formPedido.productos.find(p => p.id === producto.id);
+                            if (existing && existing.cantidad > 1) {
+                              const nuevaCantidad = existing.cantidad - 1;
+                              setFormPedido({
+                                ...formPedido,
+                                productos: formPedido.productos.map(p => 
+                                  p.id === producto.id 
+                                    ? {...p, cantidad: nuevaCantidad, precio: calcularPrecioConDescuento(producto, nuevaCantidad)}
+                                    : p
+                                )
+                              });
+                            } else if (existing) {
+                              setFormPedido({
+                                ...formPedido,
+                                productos: formPedido.productos.filter(p => p.id !== producto.id)
+                              });
+                            }
+                          }}
+                          className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 font-bold"
+                        >
+                          -
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {formPedido.productos.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Productos Seleccionados</label>
+                <div className="border rounded p-3">
+                  {formPedido.productos.map((prod, index) => (
+                    <div key={`${prod.id}-${index}`} className="flex justify-between py-1">
+                      <span>{prod.nombre} x{prod.cantidad}</span>
+                      <span>${(prod.precio * prod.cantidad).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2 font-bold">
+                    Total: ${formPedido.productos.reduce((sum, prod) => sum + (prod.precio * prod.cantidad), 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={async () => {
+                if (!formPedido.nombre || !formPedido.apellido || !formPedido.telefono || !formPedido.direccion || formPedido.productos.length === 0) {
+                  alert('Por favor completa todos los campos y selecciona al menos un producto');
+                  return;
+                }
+                
+                const token = localStorage.getItem('token');
+                const requestData = {
+                  pedido_id: pedidoSeleccionado?.id,
+                  nombre: formPedido.nombre,
+                  apellido: formPedido.apellido,
+                  telefono: formPedido.telefono,
+                  direccion: formPedido.direccion,
+                  external_id: formPedido.external_id,
+                  productos: formPedido.productos
+                };
+                console.log('Enviando datos de actualización:', requestData);
+                const response = await fetch('/api/pedidos', {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                  setModalEditarPedido(false);
+                  setPedidoSeleccionado(null);
+                  cargarPedidos();
+                  alert('Pedido actualizado exitosamente');
+                } else {
+                  const errorData = await response.json();
+                  console.error('Error al actualizar pedido:', errorData);
+                  alert(`Error al actualizar el pedido: ${errorData.error || 'Error desconocido'}`);
+                }
+              }}
+              className="bg-blue-700 text-white px-4 py-2 rounded font-semibold hover:bg-blue-800"
+            >
+              Actualizar Pedido
+            </button>
+            <button
+              onClick={() => setModalEditarPedido(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded font-semibold hover:bg-gray-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
-} 
+}

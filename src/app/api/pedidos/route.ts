@@ -31,8 +31,12 @@ export async function POST(req: NextRequest) {
   const userId = getUserIdFromRequest(req);
   if (!userId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   const body = await req.json();
-  const { productos, direccion_id } = body;
-  if (!Array.isArray(productos) || !direccion_id) {
+  const { productos, direccion_id, estado, external_id, nombre, apellido, telefono, direccion } = body;
+  
+  // Verificar si es un pedido personalizado (sin direccion_id pero con datos directos)
+  const isPersonalizado = !direccion_id && nombre && apellido && telefono && direccion;
+  
+  if (!Array.isArray(productos) || (!direccion_id && !isPersonalizado)) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
   try {
@@ -46,20 +50,45 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Stock insuficiente para el producto ${p.nombre}` }, { status: 400 });
       }
     }
-    // Obtener snapshot de la dirección
-    const direccionRes = await client.query(
-      'SELECT region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe FROM direcciones WHERE id = $1',
-      [direccion_id]
-    );
-    const direccionSnapshot = direccionRes.rows[0] || null;
+    let direccionSnapshot = null;
+    let direccionIdToUse = direccion_id;
+    
+    if (isPersonalizado) {
+      // Para pedidos personalizados, crear un snapshot directo
+      direccionSnapshot = {
+        nombre_recibe: nombre,
+        apellido_recibe: apellido,
+        telefono_recibe: telefono,
+        region: '',
+        comuna: '',
+        calle: direccion,
+        numero: '',
+        depto_oficina: ''
+      };
+      direccionIdToUse = null; // No hay direccion_id para pedidos personalizados
+    } else {
+      // Obtener snapshot de la dirección existente
+      const direccionRes = await client.query(
+        'SELECT region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe FROM direcciones WHERE id = $1',
+        [direccion_id]
+      );
+      direccionSnapshot = direccionRes.rows[0] || null;
+    }
+    
     // Insertar pedido con snapshot de dirección en detalles
+    // Guardar external_id dentro de detalles junto con el snapshot de dirección
+    const detallesPayload: Record<string, unknown> = direccionSnapshot ? { ...direccionSnapshot } : {};
+    if (external_id) detallesPayload.external_id = external_id;
+    const detallesJson = Object.keys(detallesPayload).length > 0 ? JSON.stringify(detallesPayload) : null;
+
     const result = await client.query(
-      'INSERT INTO pedidos (usuario_id, direccion_id, total, detalles, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id',
+      'INSERT INTO pedidos (usuario_id, direccion_id, total, detalles, estado, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id',
       [
-        userId,
-        direccion_id,
+        isPersonalizado ? null : userId, // Para pedidos personalizados, no asociar a usuario específico
+        direccionIdToUse,
         productos.reduce((sum: number, p: { precio: number, cantidad: number }) => sum + p.precio * p.cantidad, 0),
-        direccionSnapshot ? JSON.stringify(direccionSnapshot) : null
+        detallesJson,
+        estado || 'pendiente'
       ]
     );
     const pedidoId = result.rows[0].id;
@@ -69,6 +98,7 @@ export async function POST(req: NextRequest) {
         'INSERT INTO pedido_productos (pedido_id, producto_id, cantidad, precio) VALUES ($1, $2, $3, $4)',
         [pedidoId, p.id, p.cantidad, p.precio]
       );
+      // Descontar stock siempre
       await client.query(
         'UPDATE productos SET stock = stock - $1 WHERE id = $2',
         [p.cantidad, p.id]
@@ -82,27 +112,122 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  console.log('PUT /api/pedidos - Iniciando...');
   const userId = getUserIdFromRequest(req);
   if (!userId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!(await isAdminUser(userId))) return NextResponse.json({ error: 'Solo admin puede cambiar estado' }, { status: 403 });
   const body = await req.json();
-  const { pedido_id, estado } = body;
-  if (!pedido_id || !estado) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
+  console.log('Body recibido:', body);
+  const { pedido_id, estado, nombre, apellido, telefono, direccion, external_id, productos } = body;
+  console.log('external_id recibido:', external_id, 'tipo:', typeof external_id);
+  
+  // Verificar si es edición completa de pedido o solo cambio de estado
+  const isEdicionCompleta = nombre && apellido && telefono && direccion && productos;
+  
+  if (!pedido_id || (!estado && !isEdicionCompleta)) {
+    return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
+  }
+  
+  let client;
   try {
-    const client = await pool.connect();
-    // Si el nuevo estado es 'cancelado', devolver el stock de los productos
-    if (estado === 'cancelado') {
-      // Obtener productos del pedido
-      const productosRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
-      for (const row of productosRes.rows) {
+    console.log('Conectando a la base de datos...');
+    client = await pool.connect();
+    console.log('Conexión establecida');
+    
+    if (isEdicionCompleta) {
+      console.log('Iniciando edición completa del pedido...');
+      // Edición completa del pedido
+      if (!Array.isArray(productos)) {
+        client.release();
+        return NextResponse.json({ error: 'Productos inválidos' }, { status: 400 });
+      }
+      
+      // Obtener productos actuales del pedido para calcular stock disponible
+      const productosActualesRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
+      const stockDisponible: { [key: number]: number } = {};
+      
+      // Primero, obtener el stock actual de todos los productos
+      for (const p of productos) {
+        const res = await client.query('SELECT stock FROM productos WHERE id = $1', [p.id]);
+        const stockActual = res.rows[0]?.stock ?? 0;
+        stockDisponible[p.id] = stockActual;
+      }
+      
+      // Luego, agregar la cantidad que está en el pedido original para cada producto
+      for (const row of productosActualesRes.rows) {
+        if (stockDisponible[row.producto_id] !== undefined) {
+          stockDisponible[row.producto_id] += row.cantidad;
+        }
+      }
+      
+      // Verificar stock suficiente para todos los productos
+      for (const p of productos) {
+        if (stockDisponible[p.id] < p.cantidad) {
+          client.release();
+          return NextResponse.json({ error: `Stock insuficiente para el producto ${p.nombre}. Disponible: ${stockDisponible[p.id]}, Solicitado: ${p.cantidad}` }, { status: 400 });
+        }
+      }
+      
+      // Devolver stock de productos actuales del pedido
+      for (const row of productosActualesRes.rows) {
         await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [row.cantidad, row.producto_id]);
       }
+      
+      // Eliminar productos actuales del pedido
+      await client.query('DELETE FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
+      
+      // Crear nuevo snapshot de dirección
+      const direccionSnapshot = {
+        nombre_recibe: nombre,
+        apellido_recibe: apellido,
+        telefono_recibe: telefono,
+        region: '',
+        comuna: '',
+        calle: direccion,
+        numero: '',
+        depto_oficina: ''
+      };
+      
+      // Actualizar pedido con nuevos datos
+      const total = productos.reduce((sum: number, p: { precio: number, cantidad: number }) => sum + p.precio * p.cantidad, 0);
+      console.log('Actualizando pedido con total:', total, 'external_id:', external_id);
+      await client.query(
+        'UPDATE pedidos SET total = $1, detalles = $2, external_id = $3 WHERE id = $4',
+        [total, JSON.stringify(direccionSnapshot), external_id || '', pedido_id]
+      );
+      console.log('Pedido actualizado exitosamente');
+      
+      // Insertar nuevos productos y descontar stock
+      for (const p of productos) {
+        await client.query(
+          'INSERT INTO pedido_productos (pedido_id, producto_id, cantidad, precio) VALUES ($1, $2, $3, $4)',
+          [pedido_id, p.id, p.cantidad, p.precio]
+        );
+        await client.query(
+          'UPDATE productos SET stock = stock - $1 WHERE id = $2',
+          [p.cantidad, p.id]
+        );
+      }
+    } else {
+      // Solo cambio de estado
+      if (estado === 'cancelado') {
+        // Obtener productos del pedido
+        const productosRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
+        for (const row of productosRes.rows) {
+          await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [row.cantidad, row.producto_id]);
+        }
+      }
+      await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, pedido_id]);
     }
-    await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, pedido_id]);
+    
     client.release();
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Error actualizando estado' }, { status: 500 });
+  } catch (error) {
+    console.error('Error en PUT /api/pedidos:', error);
+    if (client) {
+      client.release();
+    }
+    return NextResponse.json({ error: 'Error actualizando pedido' }, { status: 500 });
   }
 }
 
@@ -139,7 +264,7 @@ export async function GET(req: NextRequest) {
     let pedidosRes;
     if (isAdmin) {
       pedidosRes = await client.query(`
-        SELECT p.id, p.usuario_id, u.nombre as usuario_nombre, u.apellido as usuario_apellido, d.region, d.comuna, d.calle, d.numero, d.depto_oficina, d.nombre_recibe, d.apellido_recibe, d.telefono_recibe, p.total, p.created_at, p.estado, p.detalles
+        SELECT p.id, p.usuario_id, u.nombre as usuario_nombre, u.apellido as usuario_apellido, d.region, d.comuna, d.calle, d.numero, d.depto_oficina, d.nombre_recibe, d.apellido_recibe, d.telefono_recibe, p.total, p.created_at, p.estado, p.detalles, p.external_id
         FROM pedidos p
         LEFT JOIN usuarios u ON p.usuario_id = u.id
         LEFT JOIN direcciones d ON p.direccion_id = d.id
@@ -147,7 +272,7 @@ export async function GET(req: NextRequest) {
       `);
     } else {
       pedidosRes = await client.query(`
-        SELECT p.id, p.created_at, p.total, p.estado, d.region, d.comuna, d.calle, d.numero, d.depto_oficina, d.nombre_recibe, d.apellido_recibe, d.telefono_recibe, p.detalles
+        SELECT p.id, p.created_at, p.total, p.estado, d.region, d.comuna, d.calle, d.numero, d.depto_oficina, d.nombre_recibe, d.apellido_recibe, d.telefono_recibe, p.detalles, p.external_id
         FROM pedidos p
         LEFT JOIN direcciones d ON p.direccion_id = d.id
         WHERE p.usuario_id = $1
@@ -158,7 +283,7 @@ export async function GET(req: NextRequest) {
     // Para cada pedido, obtener productos y usar snapshot de dirección si existe
     for (const pedido of pedidos) {
       const prodRes = await client.query(
-        `SELECT pp.cantidad, pp.precio, p.nombre FROM pedido_productos pp JOIN productos p ON pp.producto_id = p.id WHERE pp.pedido_id = $1`,
+        `SELECT pp.producto_id, pp.cantidad, pp.precio, p.nombre FROM pedido_productos pp JOIN productos p ON pp.producto_id = p.id WHERE pp.pedido_id = $1`,
         [pedido.id]
       );
       pedido.productos = prodRes.rows;
@@ -174,10 +299,24 @@ export async function GET(req: NextRequest) {
           pedido.nombre_recibe = detalles.nombre_recibe;
           pedido.apellido_recibe = detalles.apellido_recibe;
           pedido.telefono_recibe = detalles.telefono_recibe;
+          if (detalles.external_id) {
+            pedido.external_id = detalles.external_id;
+          }
+          
+          // Para pedidos personalizados (sin usuario_id), usar los datos del snapshot
+          if (!pedido.usuario_id && pedido.nombre_recibe && pedido.apellido_recibe) {
+            pedido.usuario_nombre = pedido.nombre_recibe;
+            pedido.usuario_apellido = pedido.apellido_recibe;
+          }
         } catch {}
       }
       if (isAdmin) {
-        pedido.direccion = `${pedido.region}, ${pedido.comuna}, ${pedido.calle} #${pedido.numero}${pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}`;
+        // Para pedidos personalizados, mostrar solo la dirección
+        if (!pedido.region && !pedido.comuna) {
+          pedido.direccion = pedido.calle;
+        } else {
+          pedido.direccion = `${pedido.region}, ${pedido.comuna}, ${pedido.calle} #${pedido.numero}${pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}`;
+        }
       }
     }
     client.release();

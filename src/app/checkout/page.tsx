@@ -6,6 +6,9 @@ import Image from 'next/image';
 import { FaTrash } from 'react-icons/fa';
 import Modal from 'react-modal';
 
+// Configuración de WhatsApp
+const WHATSAPP_NUMBER = '56997322819'; // Cambiar por el número real de la empresa
+
 interface FormularioCheckout {
   nombre: string;
   apellido: string;
@@ -80,7 +83,7 @@ export default function CheckoutPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   // Agregar estados para guardar el resumen del pedido
-  const [pedidoResumen, setPedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
+  const [pedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
   const [direcciones, setDirecciones] = useState<Direccion[]>([]);
   const [direccionSeleccionada, setDireccionSeleccionada] = useState<number | null>(null);
   const [modalDireccion, setModalDireccion] = useState(false);
@@ -141,34 +144,135 @@ export default function CheckoutPage() {
     setStep(2);
   };
 
-  // Enviar pedido
-  const handlePagar = async () => {
+  // Enviar pedido (función original - ahora reemplazada por WhatsApp)
+  // const handlePagar = async () => {
+  //   setError('');
+  //   setMsg('');
+  //   const token = localStorage.getItem('token');
+  //   // Usar el id de la dirección recién guardada
+  //   const direccionId = form.direccion_id;
+  //   if (!direccionId) {
+  //     setError('No se pudo obtener la dirección.');
+  //     return;
+  //   }
+  //   // Guardar resumen antes de limpiar el carrito
+  //   setPedidoResumen({ productos: [...cart], total: cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0) });
+  //   const res = await fetch('/api/pedidos', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+  //     body: JSON.stringify({
+  //       productos: cart,
+  //       direccion_id: direccionId,
+  //     })
+  //   });
+  //   if (res.ok) {
+  //     setMsg('¡Pedido realizado con éxito! Nos comunicaremos contigo para la gestión');
+  //     clearCart();
+  //     setTimeout(() => router.push('/perfil?pedido=ok'), 2000);
+  //   } else {
+  //     setError('Error al procesar el pedido');
+  //   }
+  // };
+
+  // Función para generar mensaje de WhatsApp para pedido
+  const generarMensajePedido = (externalId: string) => {
+    const productos = cart.map(item => {
+      const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
+      return `• ${item.cantidad}x ${item.nombre} - $${(precioUnitario * item.cantidad).toLocaleString()}`;
+    }).join('\n');
+
+    const direccion = direcciones.find(d => d.id === direccionSeleccionada);
+    const direccionTexto = direccion ? 
+      `${direccion.region}, ${direccion.comuna}, ${direccion.calle} #${direccion.numero}${direccion.depto_oficina ? `, ${direccion.depto_oficina}` : ''} - ${direccion.nombre_recibe} ${direccion.apellido_recibe} (${direccion.telefono_recibe})` : 
+      'No seleccionada';
+
+    const mensaje = `🛒 *NUEVO PEDIDO - Agricola Horizonte*
+
+*Productos:*
+${productos}
+
+*Total: $${total.toLocaleString()}*
+
+*Cliente:*
+Nombre: ${form.nombre} ${form.apellido}
+Teléfono: ${form.telefono}
+Email: ${form.email}
+
+*Dirección de entrega:*
+${direccionTexto}
+
+*ID Pedido: #${externalId}*
+
+¿Podrían contactarme para coordinar la entrega y pago?`;
+
+    return encodeURIComponent(mensaje);
+  };
+
+  // Función para generar mensaje de WhatsApp para cotización
+  const generarMensajeCotizacion = () => {
+    const productos = cart.map(item => `• ${item.cantidad}x ${item.nombre}`).join('\n');
+
+    const mensaje = `🛒 *COTIZACIÓN DE PRODUCTOS - Agricola Horizonte*
+
+*Productos de interés:*
+${productos}
+
+*Cliente:*
+Nombre: ${form.nombre} ${form.apellido}
+Teléfono: ${form.telefono}
+Email: ${form.email}
+
+Me gustaría obtener información sobre disponibilidad, precios y opciones de entrega para estos productos.`;
+
+    return encodeURIComponent(mensaje);
+  };
+
+  // Función para realizar pedido por WhatsApp
+  const handlePedidoWhatsApp = async () => {
     setError('');
     setMsg('');
     const token = localStorage.getItem('token');
-    // Usar el id de la dirección recién guardada
     const direccionId = form.direccion_id;
+    
     if (!direccionId) {
       setError('No se pudo obtener la dirección.');
       return;
     }
-    // Guardar resumen antes de limpiar el carrito
-    setPedidoResumen({ productos: [...cart], total: cart.reduce((sum, p) => sum + p.precio * p.cantidad, 0) });
+
+    try {
+      const externalId = `AH-${Date.now()}`;
+      // Guardar el pedido en la base de datos
     const res = await fetch('/api/pedidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({
         productos: cart,
         direccion_id: direccionId,
+          estado: 'pendiente_whatsapp',
+          external_id: externalId
       })
     });
+
     if (res.ok) {
-      setMsg('¡Pedido realizado con éxito! Nos comunicaremos contigo para la gestión');
+        // Generar mensaje y redirigir a WhatsApp
+        const mensaje = generarMensajePedido(externalId);
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank');
+        
+        setMsg('¡Pedido guardado! Redirigiendo a WhatsApp...');
       clearCart();
       setTimeout(() => router.push('/perfil?pedido=ok'), 2000);
     } else {
       setError('Error al procesar el pedido');
     }
+    } catch {
+      setError('Error al procesar el pedido');
+    }
+  };
+
+  // Función para realizar cotización por WhatsApp
+  const handleCotizacionWhatsApp = () => {
+    const mensaje = generarMensajeCotizacion();
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank');
   };
 
   // Usar el precio unitario con descuento para el total
@@ -329,9 +433,28 @@ export default function CheckoutPage() {
                 </div>
               )}
               {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-              <div className="flex gap-4 mt-2">
-                <button type="button" onClick={handlePagar} className="bg-blue-900 text-white px-6 py-2 rounded font-bold hover:bg-blue-800 mr-2">Realizar Pedido</button>
-                <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition" onClick={() => setStep(1)}>Volver</button>
+              <div className="flex flex-col md:flex-row gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={handlePedidoWhatsApp}
+                  className="w-full md:w-auto bg-green-700 text-white px-6 py-2 rounded font-bold hover:bg-green-800 flex items-center justify-center gap-2"
+                >
+                  <Image src="/wsp.png" alt="WhatsApp" width={20} height={20} />
+                  <span>Realizar Pedido por WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCotizacionWhatsApp}
+                  className="w-full md:w-auto bg-blue-700 text-white px-6 py-2 rounded font-bold hover:bg-blue-800 flex items-center justify-center gap-2"
+                >
+                  <span>Realizar Cotización de Productos🛒</span>
+                </button>
+                <button
+                  className="w-full md:w-auto bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 transition"
+                  onClick={() => setStep(1)}
+                >
+                  Volver
+                </button>
               </div>
             </div>
           )}

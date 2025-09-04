@@ -1,26 +1,58 @@
-// preguntas/page.tsx
+"use client";
+
+import { useEffect, useState } from 'react';
 import FaqSlider from '@/components/FaqSlider';
 
-const faqData = [
-  {
-    question: '¿Tengo que desinfectar los productos de Agrícola Horizonte?',
-    answer: 'No es estrictamente necesario, pero siempre recomendamos un enjuague con agua fría antes de consumir.',
-    backgroundImageUrl: '/faq1.jpg', 
-  },
-  {
-    question: '¿Cuál es la duración de las lechugas?',
-    answer: 'Nuestras lechugas se mantienen frescas en el refrigerador entre 5 a 7 días, gracias a nuestro cuidadoso proceso de cultivo.',
-    backgroundImageUrl: '/faq2.jpg',
-  },
-  {
-    question: '¿Realizan despachos a todo Santiago?',
-    answer: 'Actualmente realizamos despachos en la mayoría de las comunas de la Región Metropolitana. Consulta por la tuya al momento de la compra.',
-    backgroundImageUrl: '/faq3.jpg',
-  }
-];
-
+interface FaqItem {
+  id: number;
+  pregunta: string;
+  respuesta: string;
+  imagen_fondo: string;
+  orden: number;
+}
 
 export default function PreguntasPage() {
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    async function fetchFaqs() {
+      try {
+        const res = await fetch('/api/faqs');
+        const data = await res.json();
+        setFaqs(data);
+      } catch (error) {
+        console.error('Error fetching FAQs:', error);
+        // Datos de respaldo si falla la API
+        setFaqs([
+          {
+            id: 1,
+            pregunta: '¿Tengo que desinfectar los productos de Agrícola Horizonte?',
+            respuesta: 'No es estrictamente necesario, pero siempre recomendamos un enjuague con agua fría antes de consumir.',
+            imagen_fondo: '/faq1.jpg',
+            orden: 1
+          },
+          {
+            id: 2,
+            pregunta: '¿Cuál es la duración de las lechugas?',
+            respuesta: 'Nuestras lechugas se mantienen frescas en el refrigerador entre 5 a 7 días, gracias a nuestro cuidadoso proceso de cultivo.',
+            imagen_fondo: '/faq2.jpg',
+            orden: 2
+          },
+          {
+            id: 3,
+            pregunta: '¿Realizan despachos a todo Santiago?',
+            respuesta: 'Actualmente realizamos despachos en la mayoría de las comunas de la Región Metropolitana. Consulta por la tuya al momento de la compra.',
+            imagen_fondo: '/faq3.jpg',
+            orden: 3
+          }
+        ]);
+      } finally {
+        setCargando(false);
+      }
+    }
+    fetchFaqs();
+  }, []);
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -46,7 +78,21 @@ export default function PreguntasPage() {
 
       <main className="w-full bg-[#ff7300]/20 py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <FaqSlider faqs={faqData} />
+          {cargando ? (
+            <div className="text-center bg-white p-8 rounded-lg shadow-md">
+              <p className="text-gray-600">Cargando preguntas frecuentes...</p>
+            </div>
+          ) : faqs.length > 0 ? (
+            <FaqSlider faqs={faqs.map(faq => ({
+              question: faq.pregunta,
+              answer: faq.respuesta,
+              backgroundImageUrl: faq.imagen_fondo
+            }))} />
+          ) : (
+            <div className="text-center bg-white p-8 rounded-lg shadow-md">
+              <p className="text-gray-600">No hay preguntas frecuentes disponibles en este momento.</p>
+            </div>
+          )}
         </div>
       </main>
     </div>

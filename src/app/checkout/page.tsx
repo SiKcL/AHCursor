@@ -7,7 +7,7 @@ import { FaTrash } from 'react-icons/fa';
 import Modal from 'react-modal';
 
 // Configuración de WhatsApp
-const WHATSAPP_NUMBER = '56997322819'; // Cambiar por el número real de la empresa
+const WHATSAPP_NUMBER = '56973821569'; // Número de la empresa
 
 interface FormularioCheckout {
   nombre: string;

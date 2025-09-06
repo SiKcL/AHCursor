@@ -22,7 +22,7 @@ const formatPrice = (price: number) => {
 };
 
 
-export default function ProductoSlider({ productos }: { productos: Producto[] }) {
+export default function ProductoSlider({ productos, onProductoAgregado }: { productos: Producto[]; onProductoAgregado?: (nombreProducto: string) => void }) {
   // Mapear productos para que usen imageUrl
   const productosMapeados = productos.map((p) => ({
     ...p,
@@ -127,6 +127,11 @@ export default function ProductoSlider({ productos }: { productos: Producto[] })
                           stock: producto.stock,
                           descuentos: producto.descuentos || null,
                         });
+                        
+                        // Mostrar notificación si se proporciona la función callback
+                        if (onProductoAgregado) {
+                          onProductoAgregado(producto.nombre);
+                        }
                       }}
                     >
                       Añadir al carrito

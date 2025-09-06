@@ -19,6 +19,8 @@ export default function ProductosPage() {
   const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(true);
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
+  const [mostrarNotificacion, setMostrarNotificacion] = useState(false);
+  const [productoAgregado, setProductoAgregado] = useState<string>('');
 
   useEffect(() => {
     async function fetchProductos() {
@@ -46,8 +48,32 @@ export default function ProductosPage() {
     }
   }, [terminoBusqueda, productos]);
 
+  // Función para mostrar la notificación
+  const mostrarNotificacionProducto = (nombreProducto: string) => {
+    setProductoAgregado(nombreProducto);
+    setMostrarNotificacion(true);
+    
+    // Ocultar la notificación después de 3 segundos
+    setTimeout(() => {
+      setMostrarNotificacion(false);
+    }, 3000);
+  };
+
   return (
     <div className="bg-gray-100 min-h-screen">
+      {/* Notificación de producto agregado */}
+      {mostrarNotificacion && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-slide-down">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="font-semibold">Producto Agregado</span>
+            <span className="text-green-200">- {productoAgregado}</span>
+          </div>
+        </div>
+      )}
+
       {/* Sección de encabezado con video de fondo */}
       <section className="relative w-full flex items-center justify-center bg-green-100 text-center py-20 md:py-32 lg:py-48 overflow-hidden min-h-[400px]">
         <video
@@ -111,7 +137,10 @@ export default function ProductosPage() {
               <p className="text-gray-600">Cargando productos...</p>
             </div>
           ) : productosFiltrados.length > 0 ? (
-            <ProductoSlider productos={productosFiltrados} />
+            <ProductoSlider 
+              productos={productosFiltrados} 
+              onProductoAgregado={mostrarNotificacionProducto}
+            />
           ) : terminoBusqueda ? (
             <div className="text-center bg-white p-8 rounded-lg shadow-md">
               <p className="text-gray-600">No se encontraron productos que coincidan con &quot;{terminoBusqueda}&quot;</p>
@@ -129,6 +158,22 @@ export default function ProductosPage() {
           )}
         </section>
       </main>
+
+      <style jsx>{`
+        @keyframes slide-down {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -100%);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

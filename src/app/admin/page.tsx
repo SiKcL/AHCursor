@@ -148,7 +148,7 @@ function AdminGaleria() {
               Eliminar
             </button>
           </div>
-         ))}
+        ))}
       </div>
     </div>
   );
@@ -670,7 +670,7 @@ function AdminRedes() {
                   Eliminar
                 </button>
               </div>
-             ))}
+            ))}
           </div>
         )}
       </div>
@@ -1253,7 +1253,7 @@ export default function AdminPage() {
                             }
                           }))}>Eliminar</button>
                         </div>
-                       ))}
+                      ))}
                       <button type="button" className="bg-blue-600 text-white px-3 py-1 rounded mt-2" onClick={() => setForm(f => ({
                         ...f,
                         descuentos: {
@@ -1470,7 +1470,7 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                 ))}
+                ))}
               </tbody>
             </table>
           </div>
@@ -1583,7 +1583,7 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                 ))}
+                ))}
               </tbody>
             </table>
           </div>
@@ -1696,7 +1696,7 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                 ))}
+                ))}
               </tbody>
             </table>
           </div>
@@ -1766,7 +1766,7 @@ export default function AdminPage() {
                     <td className="border px-1 py-1 align-top whitespace-normal break-words text-center">{new Date(pedido.created_at).toLocaleDateString('es-CL')}<br/>{new Date(pedido.created_at).toLocaleTimeString('es-CL')}</td>
                     <td className="border px-1 py-1 align-top text-center">Completado</td>
                   </tr>
-                 ))}
+                ))}
               </tbody>
             </table>
           </div>
@@ -1836,7 +1836,7 @@ export default function AdminPage() {
                     <td className="border px-1 py-1 align-top text-center">{new Date(pedido.created_at).toLocaleDateString('es-CL')}<br/>{new Date(pedido.created_at).toLocaleTimeString('es-CL')}</td>
                     <td className="border px-1 py-1 align-top text-center">Cancelado</td>
                   </tr>
-                 ))}
+                ))}
               </tbody>
             </table>
           </div>
@@ -1878,13 +1878,13 @@ export default function AdminPage() {
                                 <li key={i} className="mb-1">
                                   {prod.nombre} x{prod.cantidad} <span className="text-gray-500">(${prod.precio} c/u)</span>
                                 </li>
-                               ))}
+                              ))}
                             </ul>
                           </td>
                         </tr>
                       ) : null}
                     </React.Fragment>
-                   ))}
+                  ))}
                 </tbody>
               </table>
             )}
@@ -2316,8 +2316,8 @@ export default function AdminPage() {
                           -
                         </button>
                       </div>
-                    </div>
-                  );
+    </div>
+  );
                 })}
               </div>
             </div>

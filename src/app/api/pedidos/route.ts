@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
       direccionIdToUse = null; // No hay direccion_id para pedidos personalizados
     } else {
       // Obtener snapshot de la dirección existente
-      const direccionRes = await client.query(
-        'SELECT region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe FROM direcciones WHERE id = $1',
-        [direccion_id]
-      );
+    const direccionRes = await client.query(
+      'SELECT region, comuna, calle, numero, depto_oficina, nombre_recibe, apellido_recibe, telefono_recibe FROM direcciones WHERE id = $1',
+      [direccion_id]
+    );
       direccionSnapshot = direccionRes.rows[0] || null;
     }
     
@@ -210,14 +210,14 @@ export async function PUT(req: NextRequest) {
       }
     } else {
       // Solo cambio de estado
-      if (estado === 'cancelado') {
-        // Obtener productos del pedido
-        const productosRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
-        for (const row of productosRes.rows) {
-          await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [row.cantidad, row.producto_id]);
-        }
+    if (estado === 'cancelado') {
+      // Obtener productos del pedido
+      const productosRes = await client.query('SELECT producto_id, cantidad FROM pedido_productos WHERE pedido_id = $1', [pedido_id]);
+      for (const row of productosRes.rows) {
+        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [row.cantidad, row.producto_id]);
       }
-      await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, pedido_id]);
+    }
+    await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, pedido_id]);
     }
     
     client.release();
@@ -315,7 +315,7 @@ export async function GET(req: NextRequest) {
         if (!pedido.region && !pedido.comuna) {
           pedido.direccion = pedido.calle;
         } else {
-          pedido.direccion = `${pedido.region}, ${pedido.comuna}, ${pedido.calle} #${pedido.numero}${pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}`;
+        pedido.direccion = `${pedido.region}, ${pedido.comuna}, ${pedido.calle} #${pedido.numero}${pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}`;
         }
       }
     }

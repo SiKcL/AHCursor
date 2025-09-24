@@ -45,9 +45,36 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart(prev => {
       const found = prev.find(p => p.id === item.id);
       if (found) {
+        const nuevaCantidad = item.cantidad ? item.cantidad : found.cantidad + 1;
+        let nuevoPrecio = item.precio;
+        
+        // Recalcular precio con descuentos si es necesario
+        if (item.descuentos && nuevaCantidad !== found.cantidad) {
+          if (item.descuentos.tipo === 'general' && item.descuentos.items.length > 0) {
+            const porcentaje = item.descuentos.items[0]?.porcentaje;
+            if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+              nuevoPrecio = Math.round(item.precioBase * (1 - porcentaje / 100));
+            }
+          } else if (item.descuentos.tipo === 'por_cantidad') {
+            const items = [...item.descuentos.items].sort((a, b) => b.min - a.min);
+            let descuentoAplicado = false;
+            for (const d of items) {
+              if (nuevaCantidad >= d.min && typeof d.precio === 'number' && !isNaN(d.precio)) {
+                nuevoPrecio = d.precio;
+                descuentoAplicado = true;
+                break;
+              }
+            }
+            // Si no se aplicó ningún descuento, usar precio base
+            if (!descuentoAplicado) {
+              nuevoPrecio = item.precioBase;
+            }
+          }
+        }
+        
         return prev.map(p =>
           p.id === item.id
-            ? { ...p, cantidad: item.cantidad ? item.cantidad : p.cantidad + 1, precio: item.precio, precioBase: item.precioBase, stock: item.stock }
+            ? { ...p, cantidad: nuevaCantidad, precio: nuevoPrecio, precioBase: item.precioBase, stock: item.stock, descuentos: item.descuentos }
             : p
         );
       }
@@ -73,11 +100,17 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             }
           } else if (p.descuentos.tipo === 'por_cantidad') {
             const items = [...p.descuentos.items].sort((a, b) => b.min - a.min);
+            let descuentoAplicado = false;
             for (const d of items) {
               if (cantidad >= d.min && typeof d.precio === 'number' && !isNaN(d.precio)) {
                 nuevoPrecio = d.precio;
+                descuentoAplicado = true;
                 break;
               }
+            }
+            // Si no se aplicó ningún descuento, usar precio base
+            if (!descuentoAplicado) {
+              nuevoPrecio = p.precioBase;
             }
           }
         } else if (precio !== undefined) {

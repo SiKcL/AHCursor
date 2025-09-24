@@ -83,7 +83,7 @@ export default function CheckoutPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   // Agregar estados para guardar el resumen del pedido
-  const [pedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
+  const [pedidoResumen, setPedidoResumen] = useState<{productos: CartItem[], total: number} | null>(null);
   const [direcciones, setDirecciones] = useState<Direccion[]>([]);
   const [direccionSeleccionada, setDireccionSeleccionada] = useState<number | null>(null);
   const [modalDireccion, setModalDireccion] = useState(false);
@@ -231,41 +231,66 @@ Me gustaría obtener información sobre disponibilidad, precios y opciones de en
   const handlePedidoWhatsApp = async () => {
     setError('');
     setMsg('');
+    
+    // Siempre generar el mensaje y abrir WhatsApp primero
+    const externalId = `AH-${Date.now()}`;
+    const mensaje = generarMensajePedido(externalId);
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank');
+    
+    // Intentar guardar el pedido en segundo plano (opcional)
     const token = localStorage.getItem('token');
     const direccionId = form.direccion_id;
     
-    if (!direccionId) {
-      setError('No se pudo obtener la dirección.');
-      return;
-    }
+    if (token && direccionId) {
+      try {
+        const res = await fetch('/api/pedidos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({
+            productos: cart,
+            direccion_id: direccionId,
+            estado: 'pendiente_whatsapp',
+            external_id: externalId
+          })
+        });
 
-    try {
-      const externalId = `AH-${Date.now()}`;
-      // Guardar el pedido en la base de datos
-    const res = await fetch('/api/pedidos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({
-        productos: cart,
-        direccion_id: direccionId,
-          estado: 'pendiente_whatsapp',
-          external_id: externalId
-      })
-    });
-
-    if (res.ok) {
-        // Generar mensaje y redirigir a WhatsApp
-        const mensaje = generarMensajePedido(externalId);
-        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank');
-        
-        setMsg('¡Pedido guardado! Redirigiendo a WhatsApp...');
-      clearCart();
-      setTimeout(() => router.push('/perfil?pedido=ok'), 2000);
+        if (res.ok) {
+          // Guardar resumen del pedido antes de limpiar el carrito
+          setPedidoResumen({
+            productos: [...cart],
+            total: cart.reduce((sum, item) => {
+              const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
+              return sum + precioUnitario * item.cantidad;
+            }, 0)
+          });
+          setMsg('¡Pedido guardado! Redirigiendo a WhatsApp...');
+          clearCart();
+          setTimeout(() => router.push('/perfil?pedido=ok'), 2000);
+        } else {
+          // Si falla guardar, solo mostrar mensaje de WhatsApp
+          setMsg('¡Redirigiendo a WhatsApp! El pedido se procesará por WhatsApp.');
+        }
+      } catch {
+        // Si falla guardar, guardar resumen del pedido antes de mostrar mensaje
+        setPedidoResumen({
+          productos: [...cart],
+          total: cart.reduce((sum, item) => {
+            const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
+            return sum + precioUnitario * item.cantidad;
+          }, 0)
+        });
+        setMsg('¡Redirigiendo a WhatsApp! El pedido se procesará por WhatsApp.');
+      }
     } else {
-      setError('Error al procesar el pedido');
-    }
-    } catch {
-      setError('Error al procesar el pedido');
+      // Si no hay token o dirección, guardar resumen del pedido antes de mostrar mensaje
+      setPedidoResumen({
+        productos: [...cart],
+        total: cart.reduce((sum, item) => {
+          const precioUnitario = getPrecioUnitario(item.precioBase, item.cantidad, item);
+          return sum + precioUnitario * item.cantidad;
+        }, 0)
+      });
+      setMsg('¡Redirigiendo a WhatsApp! El pedido se procesará por WhatsApp.');
     }
   };
 

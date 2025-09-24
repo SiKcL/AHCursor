@@ -2,6 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import jwt from 'jsonwebtoken';
 
+// Función para calcular precio correcto con descuentos
+function calcularPrecioCorrecto(precioBase: number, cantidad: number, descuentos: { tipo: string; items: { min: number; precio?: number; porcentaje?: number }[] } | null) {
+  if (!descuentos) return precioBase;
+  
+  if (descuentos.tipo === 'general' && descuentos.items.length > 0) {
+    const porcentaje = descuentos.items[0]?.porcentaje;
+    if (typeof porcentaje === 'number' && !isNaN(porcentaje)) {
+      return Math.round(precioBase * (1 - porcentaje / 100));
+    }
+  }
+  
+  if (descuentos.tipo === 'por_cantidad') {
+    const items = [...descuentos.items].sort((a, b) => b.min - a.min);
+    for (const d of items) {
+      if (cantidad >= d.min && typeof d.precio === 'number' && !isNaN(d.precio)) {
+        return d.precio;
+      }
+    }
+  }
+  
+  return precioBase;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 function getUserIdFromRequest(req: NextRequest): number | null {
@@ -81,19 +104,44 @@ export async function POST(req: NextRequest) {
     if (external_id) detallesPayload.external_id = external_id;
     const detallesJson = Object.keys(detallesPayload).length > 0 ? JSON.stringify(detallesPayload) : null;
 
+    // Recalcular precios correctamente antes de guardar
+    let totalCorrecto = 0;
+    const productosConPreciosCorregidos = [];
+    
+    for (const p of productos) {
+      // Obtener información completa del producto para recalcular precio
+      const productoRes = await client.query('SELECT precio, descuentos FROM productos WHERE id = $1', [p.id]);
+      const producto = productoRes.rows[0];
+      
+      if (producto) {
+        const precioCorrecto = calcularPrecioCorrecto(
+          producto.precio, 
+          p.cantidad, 
+          producto.descuentos
+        );
+        
+        productosConPreciosCorregidos.push({
+          ...p,
+          precio: precioCorrecto
+        });
+        
+        totalCorrecto += precioCorrecto * p.cantidad;
+      }
+    }
+
     const result = await client.query(
       'INSERT INTO pedidos (usuario_id, direccion_id, total, detalles, estado, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id',
       [
         isPersonalizado ? null : userId, // Para pedidos personalizados, no asociar a usuario específico
         direccionIdToUse,
-        productos.reduce((sum: number, p: { precio: number, cantidad: number }) => sum + p.precio * p.cantidad, 0),
+        totalCorrecto,
         detallesJson,
         estado || 'pendiente'
       ]
     );
     const pedidoId = result.rows[0].id;
-    // Insertar productos del pedido y descontar stock
-    for (const p of productos) {
+    // Insertar productos del pedido con precios corregidos
+    for (const p of productosConPreciosCorregidos) {
       await client.query(
         'INSERT INTO pedido_productos (pedido_id, producto_id, cantidad, precio) VALUES ($1, $2, $3, $4)',
         [pedidoId, p.id, p.cantidad, p.precio]
@@ -188,17 +236,41 @@ export async function PUT(req: NextRequest) {
         depto_oficina: ''
       };
       
+      // Recalcular precios correctamente antes de actualizar
+      let totalCorrecto = 0;
+      const productosConPreciosCorregidos = [];
+      
+      for (const p of productos) {
+        // Obtener información completa del producto para recalcular precio
+        const productoRes = await client.query('SELECT precio, descuentos FROM productos WHERE id = $1', [p.id]);
+        const producto = productoRes.rows[0];
+        
+        if (producto) {
+          const precioCorrecto = calcularPrecioCorrecto(
+            producto.precio, 
+            p.cantidad, 
+            producto.descuentos
+          );
+          
+          productosConPreciosCorregidos.push({
+            ...p,
+            precio: precioCorrecto
+          });
+          
+          totalCorrecto += precioCorrecto * p.cantidad;
+        }
+      }
+
       // Actualizar pedido con nuevos datos
-      const total = productos.reduce((sum: number, p: { precio: number, cantidad: number }) => sum + p.precio * p.cantidad, 0);
-      console.log('Actualizando pedido con total:', total, 'external_id:', external_id);
+      console.log('Actualizando pedido con total:', totalCorrecto, 'external_id:', external_id);
       await client.query(
         'UPDATE pedidos SET total = $1, detalles = $2, external_id = $3 WHERE id = $4',
-        [total, JSON.stringify(direccionSnapshot), external_id || '', pedido_id]
+        [totalCorrecto, JSON.stringify(direccionSnapshot), external_id || '', pedido_id]
       );
       console.log('Pedido actualizado exitosamente');
       
-      // Insertar nuevos productos y descontar stock
-      for (const p of productos) {
+      // Insertar nuevos productos con precios corregidos y descontar stock
+      for (const p of productosConPreciosCorregidos) {
         await client.query(
           'INSERT INTO pedido_productos (pedido_id, producto_id, cantidad, precio) VALUES ($1, $2, $3, $4)',
           [pedido_id, p.id, p.cantidad, p.precio]

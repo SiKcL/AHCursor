@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 
+// Configuración de WhatsApp
+const WHATSAPP_NUMBER = '56973821569';
+
 const SECCIONES = [
   { key: 'compras', label: 'Compras' },
   { key: 'datos', label: 'Datos personales' },
@@ -333,6 +336,33 @@ export default function PerfilPage() {
     }
   };
 
+  // Función para reenviar pedido por WhatsApp
+  const reenviarPedido = (pedido: Pedido) => {
+    const productos = pedido.productos.map(prod => `• ${prod.cantidad}x ${prod.nombre} - $${prod.precio.toLocaleString()}`).join('\n');
+    
+    const direccionTexto = `${pedido.region || ''}${pedido.comuna ? ', ' + pedido.comuna : ''}${pedido.calle ? ', ' + pedido.calle : ''}${pedido.numero ? ' #' + pedido.numero : ''}${pedido.depto_oficina ? ', ' + pedido.depto_oficina : ''}`;
+    
+    const mensaje = `🛒 *REENVÍO DE PEDIDO - Agricola Horizonte*
+
+*Pedido #${pedido.id} - ${new Date(pedido.created_at).toLocaleDateString()}*
+
+*Productos:*
+${productos}
+
+*Total: $${pedido.total.toLocaleString()}*
+
+*Dirección de entrega:*
+${direccionTexto}
+${pedido.nombre_recibe || pedido.apellido_recibe || pedido.telefono_recibe ? `(Recibe: ${pedido.nombre_recibe || ''} ${pedido.apellido_recibe || ''}${pedido.telefono_recibe ? ' - ' + pedido.telefono_recibe : ''})` : ''}
+
+*ID Pedido: #${pedido.external_id || pedido.id}*
+
+¿Podrían contactarme para coordinar la entrega y pago?`;
+
+    const mensajeCodificado = encodeURIComponent(mensaje);
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensajeCodificado}`, '_blank');
+  };
+
   const handleFormDirChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormDir((f) => ({ ...f, [name]: value }));
@@ -482,6 +512,30 @@ export default function PerfilPage() {
                           ))}
                         </ul>
                       </div>
+                      {/* Botón Reenviar Pedido - Solo para pedidos pendientes */}
+                      {(pedido.estado === 'pendiente' || pedido.estado === 'pendiente_whatsapp') && (
+                        <div className="mt-4 pt-3 border-t">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            <button
+                              onClick={() => reenviarPedido(pedido)}
+                              className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition"
+                            >
+                              Reenviar Pedido
+                            </button>
+                            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                              <div className="flex items-start gap-2">
+                                <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                                <div>
+                                  <p className="font-medium text-blue-800">¿No se abrió WhatsApp correctamente?</p>
+                                  <p className="text-blue-700">Este botón reenvía tu pedido completo por WhatsApp para que puedas coordinar la entrega y pago.</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

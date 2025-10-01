@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-const whatsappNumber = '56997322819';
+const whatsappNumber = '56973821569';
 const defaultMessage = encodeURIComponent('¡Hola! Deseo consultar el precio al por mayor o tengo dudas sobre los productos.');
 const whatsappLink = `https://wa.me/${whatsappNumber}?text=${defaultMessage}`;
 
